@@ -8,22 +8,29 @@ on:
       - 'src/examples/water-v2/**'
       - 'src/examples/water/**'
       - 'src/examples/eclipse/**'
+      - 'src/gallery/**'
+      - 'src/main.ts'
+      - 'src/site.css'
       - 'src/runtime/animation.ts'
       - 'src/runtime/canvas-viewport.ts'
       - 'src/runtime/stage-player.ts'
       - 'src/runtime/stage-player.css'
+      - 'src/runtime/stage-player-enhancements.css'
       - 'src/runtime/story.ts'
       - 'src/runtime/global.d.ts'
       - 'scripts/qa.mjs'
+      - 'scripts/ui-smoke.mjs'
       - 'scripts/export-story.mjs'
       - 'package.json'
       - 'README.md'
+      - 'docs/USAGE.md'
+      - '.agents/skills/loop-animation/SKILL.md'
       - '.github/workflows/continuity-qa.yml'
 
 jobs:
   flagship-continuity:
     runs-on: ubuntu-latest
-    timeout-minutes: 18
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -32,6 +39,8 @@ jobs:
       - run: npm install
       - name: Run strict water-v2 continuity QA
         run: npm run qa:water-v2:strict
+      - name: Smoke-test gallery and StagePlayer UI
+        run: npm run smoke:ui
       - name: Run strict eclipse continuity QA
         run: npm run qa:eclipse:strict
       - name: Verify localized story exports
