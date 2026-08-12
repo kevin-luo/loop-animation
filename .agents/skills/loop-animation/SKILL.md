@@ -1,6 +1,6 @@
 ---
 name: loop-animation
-description: Create polished interactive educational explainers with Three.js, continuous deterministic motion, guided narration, and HTML/MP4/GIF/PNG export. Use for science, technology, math, history, mechanisms, processes, scale comparisons, spatial explanations, simulations, or any concept that benefits from motion.
+description: Create polished interactive educational explainers with Three.js, continuous deterministic motion, guided narration, and HTML/MP4/GIF/PNG/SRT/VTT export. Use for science, technology, math, history, mechanisms, processes, scale comparisons, spatial explanations, simulations, or any concept that benefits from motion.
 ---
 
 # Loop Animation
@@ -14,15 +14,15 @@ Create explanations that teach through **continuous visual storytelling**.
 Loop Animation has three separate layers:
 
 ```text
-WORLD STATE             STORY METADATA          VIEW
+WORLD STATE             STORY METADATA          VIEW / OUTPUT
 S(t)                    chapters               HTML controls
 camera(t)               narration              captions
 objects(t)              key ideas              language switch
-materials(t)            timestamps             details drawer
-particles(t)
+materials(t)            timestamps             MP4 / GIF / PNG
+particles(t)                                    SRT / VTT / narration
 ```
 
-The **world state is a continuous function of absolute time**. Chapters are narration/navigation markers. The UI is a replaceable view layer.
+The **world state is a continuous function of absolute time**. Chapters are narration/navigation markers. The UI is a replaceable view layer. Story metadata is also an exportable source for subtitles and future TTS.
 
 Never let a chapter number become the source of truth for the visual world.
 
@@ -43,10 +43,18 @@ Each chapter should answer one question and define:
 - `id`
 - start/end time
 - short label
-- one concise on-screen explanation
-- optional deeper explanation
-- one key takeaway
+- one concise, speech-friendly `summary`
+- optional deeper `details`
+- one `key` takeaway
 - the visual mechanism being emphasized
+
+Write `summary` so it can work simultaneously as:
+
+- on-screen explanation
+- subtitle cue
+- future TTS narration seed
+
+Do not write a second unrelated narration script later unless the user explicitly requests a different voiceover treatment.
 
 Chapters organize the explanation. **They do not own separate visual states.**
 
@@ -57,7 +65,7 @@ Before coding, describe what exists for the full animation and how it evolves ov
 Prefer object continuity:
 
 - the same water droplet travels through multiple parts of the water cycle
-- the same packet moves through DNS infrastructure
+- the same packet moves through network infrastructure
 - the same Moon continues along one orbit
 - the same quantity transforms instead of disappearing and being recreated
 
@@ -130,7 +138,43 @@ The same timestamp must produce the same frame regardless of:
 
 Do not drive export-critical state from accumulated `deltaTime`, wall-clock time, or uncontrolled randomness. Seed procedural randomness.
 
-### 6. Keep the runtime headless
+### 6. Publish one localized Story Manifest
+
+Flagship explainers using `StagePlayer` should publish:
+
+```ts
+window.__LOOP_STORY__
+```
+
+The manifest contains:
+
+```text
+language
+topic title / lead
+duration
+chapters:
+  id
+  start / end
+  label
+  title
+  summary
+  details
+  key
+```
+
+`StagePlayer` publishes this automatically when `applyCopy()` is called, including after a language switch.
+
+This is the canonical source for:
+
+- HTML chapter copy
+- SRT subtitles
+- WebVTT captions
+- narration JSON
+- future TTS/audio composition
+
+Do not maintain a separate hand-written subtitle timeline when the chapter story already expresses the same content.
+
+### 7. Keep the runtime headless
 
 The timeline controls time and emits snapshots. The renderer controls the visual world. The UI subscribes to time/chapter changes.
 
@@ -145,7 +189,7 @@ src/runtime/stage-player.css
 
 But treat it as a view, not a required visual template. A topic may use a different UI if that teaches better.
 
-### 7. Default to stage-first interaction
+### 8. Default to stage-first interaction
 
 The visual explanation should dominate the screen.
 
@@ -154,6 +198,7 @@ Prefer:
 - large uninterrupted visual stage
 - one concise lower-third explanation
 - chapter/storyline navigation integrated into the edge of the frame
+- a directly scrubbable storyline
 - optional deeper explanation on demand
 - lightweight anchored labels near the object they explain
 
@@ -168,7 +213,7 @@ The default balance should be roughly:
 
 If the animation already explains a fact visually, do not repeat it with a paragraph.
 
-### 8. Synchronize narration and motion
+### 9. Synchronize narration and motion
 
 Every narration change must correspond to a visible change or a new interpretation of the same visible state.
 
@@ -182,7 +227,7 @@ Weak:
 
 > narration changes while the scene continues doing almost the same decorative movement.
 
-### 9. Performance contract
+### 10. Performance contract
 
 Interactive playback should remain smooth on ordinary laptops and phones.
 
@@ -198,7 +243,7 @@ Required practices:
 - update chapter text only when the chapter changes
 - update tiny time/progress UI cheaply rather than rebuilding DOM each frame
 
-### 10. Bilingual behavior
+### 11. Bilingual behavior
 
 When multiple languages are requested:
 
@@ -206,17 +251,18 @@ When multiple languages are requested:
 - provide a language switch
 - remember the user's choice
 - keep a whole screen in one language
+- publish the matching localized Story Manifest
 
 Never mix Chinese and English versions of the same explanation on screen at once.
 
-### 11. Run visual + boundary QA
+### 12. Run visual + boundary QA
 
 Inside this repository:
 
 ```bash
 npm run typecheck
 npm run build
-npm run qa:water
+npm run qa:continuity
 ```
 
 QA produces normal checkpoint frames plus **boundary continuity samples** at:
@@ -242,7 +288,9 @@ Inspect additionally for:
 - misleading geometry
 - poor vertical and landscape framing
 
-### 12. Export from the same source
+### 13. Export from the same source
+
+Visual outputs:
 
 ```bash
 npm run export:mp4
@@ -250,7 +298,25 @@ npm run export:gif
 npm run export:png
 ```
 
-The interactive HTML is the source artifact. Video, GIF, poster, subtitles and narration should derive from the same deterministic timeline.
+Story outputs for flagship examples:
+
+```bash
+npm run story:water:zh
+npm run story:water:en
+npm run story:eclipse:zh
+npm run story:eclipse:en
+```
+
+Generated story artifacts include:
+
+```text
+*.narration.json
+*.narration.md
+*.srt
+*.vtt
+```
+
+The interactive HTML is the source artifact. Video, GIF, poster, subtitles and narration should derive from the same deterministic timeline and Story Manifest.
 
 ## Visual grammar
 
@@ -295,14 +361,15 @@ Avoid:
 For a new explainer:
 
 1. Read `src/examples/water/main.ts` first for the current continuous-timeline pattern.
-2. Define 5–8 chapters as story metadata.
+2. Define 5–8 chapters as Story Manifest metadata.
 3. Design one continuous world state across the whole duration.
 4. Reuse `DeterministicTimeline`.
 5. Use `observeRendererViewport()` for resizing.
 6. Prefer `StagePlayer` for a stage-first starting point, but customize presentation when the topic needs it.
 7. Use absolute-time curves/envelopes instead of chapter-conditioned visual states.
-8. Run typecheck, build, normal QA and boundary QA.
-9. Export requested formats from the same timeline.
+8. Make chapter summaries concise enough to work as subtitles/narration.
+9. Run typecheck, build, continuity QA, and story export smoke checks.
+10. Export requested formats from the same timeline/story source.
 
 ## Completion criteria
 
@@ -315,6 +382,7 @@ A task is complete only when:
 - playback is smooth
 - explanatory UI does not dominate the visual
 - bilingual output switches cleanly
+- Story Manifest matches the active language and chapter timing
 - boundary QA has no unexplained jumps
-- requested exports succeed
+- requested visual/story exports succeed
 - the result still teaches when paused at meaningful timestamps
