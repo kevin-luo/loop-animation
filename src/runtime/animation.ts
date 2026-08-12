@@ -6,13 +6,24 @@ export interface TimelineStep {
   end: number;
 }
 
+export interface TimelineSnapshot {
+  time: number;
+  progress: number;
+  stepIndex: number;
+  playing: boolean;
+}
+
+export type TimelineListener = (snapshot: TimelineSnapshot) => void;
+
 export interface LoopAnimationController {
   readonly duration: number;
   readonly ready: boolean;
   readonly qaTimes?: readonly number[];
+  readonly boundaryTimes?: readonly number[];
   readonly currentTime: number;
   readonly steps?: readonly TimelineStep[];
   readonly currentStepIndex?: number;
+  readonly isPlaying?: boolean;
   renderAt(time: number): void;
   play(): void;
   pause(): void;
@@ -20,6 +31,7 @@ export interface LoopAnimationController {
   goToStep?(index: number): void;
   nextStep?(): void;
   previousStep?(): void;
+  subscribe?(listener: TimelineListener): () => void;
   destroy(): void;
 }
 
@@ -31,9 +43,17 @@ export interface TimelineOptions {
   steps?: readonly TimelineStep[];
 }
 
+/**
+ * Headless deterministic playback controller.
+ *
+ * The timeline owns time only. Chapters/steps are metadata used for navigation,
+ * narration and QA; visual state must still be a continuous function of absolute
+ * time inside onRender().
+ */
 export class DeterministicTimeline implements LoopAnimationController {
   public readonly duration: number;
   public readonly qaTimes: readonly number[];
+  public readonly boundaryTimes: readonly number[];
   public readonly steps: readonly TimelineStep[];
   public ready = true;
   public currentTime = 0;
@@ -41,7 +61,8 @@ export class DeterministicTimeline implements LoopAnimationController {
 
   private readonly onRender: RenderCallback;
   private readonly onPlayStateChange?: (playing: boolean) => void;
-  private isPlaying = false;
+  private readonly listeners = new Set<TimelineListener>();
+  private playing = false;
   private rafId: number | null = null;
   private playStartedAt = 0;
   private playStartedFrom = 0;
@@ -51,6 +72,7 @@ export class DeterministicTimeline implements LoopAnimationController {
     this.onRender = options.onRender;
     this.onPlayStateChange = options.onPlayStateChange;
     this.steps = normalizeSteps(options.steps ?? [], this.duration);
+    this.boundaryTimes = this.steps.slice(1).map((step) => step.start);
     this.qaTimes = normalizeQaTimes([
       ...(options.qaTimes ?? []),
       ...stepQaTimes(this.steps),
@@ -58,16 +80,21 @@ export class DeterministicTimeline implements LoopAnimationController {
     this.renderAt(0);
   }
 
+  get isPlaying(): boolean {
+    return this.playing;
+  }
+
   renderAt(time: number): void {
     const clamped = Math.min(this.duration, Math.max(0, time));
     this.currentTime = clamped;
     this.currentStepIndex = stepIndexAt(this.steps, clamped);
     this.onRender(clamped, clamped / this.duration);
+    this.emit();
   }
 
   seek(time: number): void {
     this.renderAt(time);
-    if (this.isPlaying) {
+    if (this.playing) {
       this.playStartedAt = performance.now();
       this.playStartedFrom = this.currentTime;
     }
@@ -76,7 +103,7 @@ export class DeterministicTimeline implements LoopAnimationController {
   goToStep(index: number): void {
     if (this.steps.length === 0) return;
     const safeIndex = Math.min(this.steps.length - 1, Math.max(0, Math.round(index)));
-    this.seek(this.steps[safeIndex].start + 0.001);
+    this.seek(this.steps[safeIndex].start);
   }
 
   nextStep(): void {
@@ -93,16 +120,17 @@ export class DeterministicTimeline implements LoopAnimationController {
   }
 
   play(): void {
-    if (this.isPlaying) return;
+    if (this.playing) return;
     if (this.currentTime >= this.duration) this.currentTime = 0;
 
-    this.isPlaying = true;
+    this.playing = true;
     this.playStartedAt = performance.now();
     this.playStartedFrom = this.currentTime;
     this.onPlayStateChange?.(true);
+    this.emit();
 
     const tick = (now: number) => {
-      if (!this.isPlaying) return;
+      if (!this.playing) return;
       const elapsed = (now - this.playStartedAt) / 1000;
       const next = this.playStartedFrom + elapsed;
       this.renderAt(next);
@@ -119,31 +147,85 @@ export class DeterministicTimeline implements LoopAnimationController {
   }
 
   pause(): void {
-    if (!this.isPlaying) return;
-    this.isPlaying = false;
+    if (!this.playing) return;
+    this.playing = false;
     if (this.rafId !== null) cancelAnimationFrame(this.rafId);
     this.rafId = null;
     this.onPlayStateChange?.(false);
+    this.emit();
+  }
+
+  subscribe(listener: TimelineListener): () => void {
+    this.listeners.add(listener);
+    listener(this.snapshot());
+    return () => this.listeners.delete(listener);
   }
 
   destroy(): void {
     this.pause();
+    this.listeners.clear();
     this.ready = false;
+  }
+
+  private snapshot(): TimelineSnapshot {
+    return {
+      time: this.currentTime,
+      progress: this.currentTime / this.duration,
+      stepIndex: this.currentStepIndex,
+      playing: this.playing,
+    };
+  }
+
+  private emit(): void {
+    if (this.listeners.size === 0) return;
+    const snapshot = this.snapshot();
+    this.listeners.forEach((listener) => listener(snapshot));
   }
 }
 
 export function easeInOutCubic(t: number): number {
-  const x = Math.min(1, Math.max(0, t));
+  const x = clamp01(t);
   return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+}
+
+export function smoothstep(t: number): number {
+  const x = clamp01(t);
+  return x * x * (3 - 2 * x);
+}
+
+export function smootherstep(t: number): number {
+  const x = clamp01(t);
+  return x * x * x * (x * (x * 6 - 15) + 10);
 }
 
 export function segment(time: number, start: number, end: number): number {
   if (end <= start) return time >= end ? 1 : 0;
-  return Math.min(1, Math.max(0, (time - start) / (end - start)));
+  return clamp01((time - start) / (end - start));
+}
+
+/** Smoothly rises from 0 → 1 over an absolute time interval. */
+export function reveal(time: number, start: number, end: number): number {
+  return smootherstep(segment(time, start, end));
+}
+
+/**
+ * Smoothly fades in, holds, then fades out. Useful instead of visible=true/false
+ * at chapter boundaries.
+ */
+export function envelope(
+  time: number,
+  fadeInStart: number,
+  fadeInEnd: number,
+  fadeOutStart: number,
+  fadeOutEnd: number,
+): number {
+  const enter = reveal(time, fadeInStart, fadeInEnd);
+  const leave = 1 - reveal(time, fadeOutStart, fadeOutEnd);
+  return Math.min(enter, leave);
 }
 
 export function lerp(from: number, to: number, t: number): number {
-  return from + (to - from) * Math.min(1, Math.max(0, t));
+  return from + (to - from) * clamp01(t);
 }
 
 export function stepIndexAt(steps: readonly TimelineStep[], time: number): number {
@@ -166,6 +248,19 @@ export function stepQaTimes(steps: readonly TimelineStep[]): number[] {
       Math.max(step.start, step.end - 0.001),
     ];
   });
+}
+
+export function boundaryQaTimes(steps: readonly TimelineStep[], fps = 30): number[] {
+  const epsilon = 1 / Math.max(1, fps);
+  return steps.slice(1).flatMap((step) => [
+    Math.max(0, step.start - epsilon),
+    step.start,
+    step.start + epsilon,
+  ]);
+}
+
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value));
 }
 
 function normalizeSteps(steps: readonly TimelineStep[], duration: number): readonly TimelineStep[] {
