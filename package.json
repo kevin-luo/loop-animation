@@ -3,7 +3,7 @@
   "version": "0.5.0",
   "private": true,
   "type": "module",
-  "description": "A Codex skill for turning concepts into continuous interactive Three.js explainers and exporting them as HTML, MP4, GIF, or PNG.",
+  "description": "A Codex skill for turning concepts into continuous interactive Three.js explainers and exporting them as HTML, MP4, GIF, PNG, subtitles, or narration data.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -22,6 +22,11 @@
     "export:png": "npm run build && node scripts/export.mjs --format png",
     "export:water:mp4": "npm run build && node scripts/export.mjs --format mp4 --demo water --width 1920 --height 1080",
     "export:water:gif": "npm run build && node scripts/export.mjs --format gif --demo water --width 1200 --height 675 --fps 15",
+    "story:water:zh": "npm run build && node scripts/export-story.mjs --demo water --lang zh",
+    "story:water:en": "npm run build && node scripts/export-story.mjs --demo water --lang en",
+    "story:eclipse:zh": "npm run build && node scripts/export-story.mjs --demo eclipse --lang zh",
+    "story:eclipse:en": "npm run build && node scripts/export-story.mjs --demo eclipse --lang en",
+    "story:all": "npm run story:water:zh && npm run story:water:en && npm run story:eclipse:zh && npm run story:eclipse:en",
     "skill:install": "node scripts/install-skill.mjs",
     "skill:install:force": "node scripts/install-skill.mjs --force"
   },
