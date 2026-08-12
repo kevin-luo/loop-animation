@@ -1,0 +1,35 @@
+name: Continuity QA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/examples/water/**'
+      - 'src/runtime/animation.ts'
+      - 'src/runtime/canvas-viewport.ts'
+      - 'src/runtime/stage-player.ts'
+      - 'src/runtime/stage-player.css'
+      - 'scripts/qa.mjs'
+      - 'package.json'
+      - '.github/workflows/continuity-qa.yml'
+
+jobs:
+  water-continuity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Run strict water continuity QA
+        run: npm run qa:water:strict
+      - name: Upload QA report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: water-continuity-qa
+          path: .output/qa/water
+          if-no-files-found: warn
