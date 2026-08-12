@@ -19,7 +19,6 @@ const demoLoaders: Record<string, () => Promise<unknown>> = {
 async function boot() {
   if (!demo) {
     await import('./gallery/studio');
-    await import('./gallery/demo-loading');
     return;
   }
 
