@@ -1,305 +1,320 @@
 ---
 name: loop-animation
-description: Create polished interactive educational explainers with Three.js and deterministic step-based timelines, then export the same work as HTML, MP4, GIF, or PNG. Use for science, technology, math, history, mechanisms, processes, scale comparisons, timelines, spatial explanations, simulations, or any concept that benefits from motion and guided explanation.
+description: Create polished interactive educational explainers with Three.js, continuous deterministic motion, guided narration, and HTML/MP4/GIF/PNG export. Use for science, technology, math, history, mechanisms, processes, scale comparisons, spatial explanations, simulations, or any concept that benefits from motion.
 ---
 
 # Loop Animation
 
-Create explanations that teach through **narration + visible change + interaction**.
+Create explanations that teach through **continuous visual storytelling**.
 
-## Core principle
+> Don't animate text. Animate ideas — and make the visual world remain continuous while the explanation advances.
 
-The interactive HTML experience is the source artifact. MP4, GIF, PNG, subtitles, narration scripts, and QA frames are deterministic renders or derivatives of the same explainer.
+## Mental model
 
-Do not generate a slide deck disguised as an animation. Do not place a short paragraph above an unrelated moving scene. **Every explanatory step must cause a meaningful visual change.**
+Loop Animation has three separate layers:
 
-> Don't animate text. Animate ideas — and explain what the viewer is seeing while it changes.
+```text
+WORLD STATE             STORY METADATA          VIEW
+S(t)                    chapters               HTML controls
+camera(t)               narration              captions
+objects(t)              key ideas              language switch
+materials(t)            timestamps             details drawer
+particles(t)
+```
+
+The **world state is a continuous function of absolute time**. Chapters are narration/navigation markers. The UI is a replaceable view layer.
+
+Never let a chapter number become the source of truth for the visual world.
 
 ## Required workflow
 
-### 1. Define and verify the learning goal
+### 1. Define one learning goal
 
-Write one sentence first:
+Write:
 
-> After watching this, the viewer should understand ____.
+> After watching this, the learner should understand ____.
 
-For factual or scientific subjects, verify uncertain claims before encoding them visually. Clearly distinguish a simplified teaching model from literal scale or physical behavior.
+Verify uncertain scientific or factual claims before encoding them visually. If scale or geometry is exaggerated for teaching, say so.
 
-### 2. Break the explanation into 5–8 teachable steps
+### 2. Break the topic into 5–8 chapters
 
-A normal explainer should have **5 to 8 steps**, not one long animation with four vague captions.
-
-Each step MUST define:
+Each chapter should answer one question and define:
 
 - `id`
-- start and end time
-- short step title
-- 1 concise explanatory paragraph
+- start/end time
+- short label
+- one concise on-screen explanation
+- optional deeper explanation
 - one key takeaway
-- visible objects involved
-- the exact visual change that occurs during the step
-- optional interaction available in HTML
+- the visual mechanism being emphasized
 
-A good step answers one question only.
+Chapters organize the explanation. **They do not own separate visual states.**
 
-Example:
+### 3. Storyboard one continuous world
+
+Before coding, describe what exists for the full animation and how it evolves over time.
+
+Prefer object continuity:
+
+- the same water droplet travels through multiple parts of the water cycle
+- the same packet moves through DNS infrastructure
+- the same Moon continues along one orbit
+- the same quantity transforms instead of disappearing and being recreated
+
+The learner should feel that one world is evolving, not that five slides are being swapped.
+
+### 4. Enforce the continuity contract
+
+For every chapter boundary `b`, important visual state should satisfy approximately:
 
 ```text
-Step 1 — Establish the system
-Explain: Sun emits light, Moon orbits Earth.
-Visual change: reveal bodies and orbital path.
-
-Step 2 — Show orbital tilt
-Explain: lunar orbit is tilted about 5.1° to the ecliptic.
-Visual change: reveal both planes and highlight the angle.
-
-Step 3 — Approach a node
-Explain: new moon must occur near an orbital node.
-Visual change: illuminate the two nodes and move the Moon toward one.
+S(b - ε) ≈ S(b + ε)
 ```
 
-Do not advance to the next step if the current step has not created a visibly different state.
+Check at least:
 
-### 3. Choose the visual grammar
+- position
+- rotation
+- scale
+- opacity
+- camera position
+- camera target
+- major material properties
 
-Choose the smallest useful set:
+Camera motion should be smooth in velocity as well as position when possible.
 
-- `scale` — relative size, distance, orders of magnitude
-- `inside` — layers, internals, anatomy, architecture
-- `flow` — packets, energy, matter, money, signals
-- `compare` — side-by-side mechanisms or outcomes
-- `cause-effect` — causal chains and feedback loops
-- `timeline` — evolution through time
-- `orbit/spatial` — spatial relationships and geometry
-- `simulation` — user-adjustable parameters
+#### Forbidden pattern
 
-Do not default to cards or bullet points when a spatial explanation is possible.
+```ts
+if (step === 0) camera.position.set(...);
+else if (step === 1) camera.position.set(...);
+```
 
-### 4. Storyboard before coding
+or:
 
-For every step define:
+```ts
+object.visible = step === 2;
+```
 
-- start and end time
-- narration / explanatory copy
-- key takeaway
-- visible objects
-- motion or transformation
-- why that motion improves understanding
-- any interaction available in HTML
+Those patterns commonly create jumps at chapter boundaries.
 
-Keep one primary visual idea per step.
+#### Preferred pattern
 
-### 5. Use a step-aware deterministic timeline
+Use absolute-time curves and overlapping envelopes:
 
-Use Three.js for the visual world and DOM/CSS overlays for concise narration, labels, controls, formulas, and annotations when they are clearer than 3D text.
+```ts
+const rain = envelope(time, 8.5, 10.5, 16.5, 18.5);
+material.opacity = rain;
 
-Every animation MUST expose:
+cameraCurve.getPointAt(time / duration, camera.position);
+```
+
+Use the helpers in `src/runtime/animation.ts` such as `reveal()` and `envelope()`.
+
+### 5. Use `renderAt(seconds)` as the source of truth
+
+Every explainer must expose:
 
 ```ts
 window.__LOOP_ANIMATION__
 ```
 
-The controller contract is:
+Prefer `DeterministicTimeline` from `src/runtime/animation.ts`.
 
-```ts
-interface LoopAnimationController {
-  duration: number;
-  ready: boolean;
-  currentTime: number;
-  qaTimes?: readonly number[];
-  steps?: readonly TimelineStep[];
-  currentStepIndex?: number;
-  renderAt(time: number): void;
-  play(): void;
-  pause(): void;
-  seek(time: number): void;
-  goToStep?(index: number): void;
-  nextStep?(): void;
-  previousStep?(): void;
-  destroy(): void;
-}
-```
+The same timestamp must produce the same frame regardless of:
 
-Prefer the shared `DeterministicTimeline` in `src/runtime/animation.ts` and pass `steps` to it.
+- playback frame rate
+- previous seeks
+- export FPS
+- how quickly the machine is running
 
-`renderAt(seconds)` is the source of truth. A frame at the same timestamp must be visually reproducible regardless of playback speed, frame rate, or previous seeks.
+Do not drive export-critical state from accumulated `deltaTime`, wall-clock time, or uncontrolled randomness. Seed procedural randomness.
 
-Never drive export-critical state from accumulated `deltaTime`, uncontrolled randomness, or wall-clock time. Seed procedural randomness.
+### 6. Keep the runtime headless
 
-### 6. Make the HTML a guided lesson, not a passive player
+The timeline controls time and emits snapshots. The renderer controls the visual world. The UI subscribes to time/chapter changes.
 
-Unless the user explicitly requests video-only output, include:
+Do not make `renderScene()` rewrite large parts of the DOM every frame.
 
-- current step number, e.g. `03 / 06`
-- current step title
-- concise explanation of what is happening
-- one key takeaway or conclusion
-- previous / next step controls
-- clickable step progress indicators
-- play / pause
-- scrub / seek
-- responsive resize
-- readable anchored labels
-- language switching when multiple languages are requested
-
-The HTML version should let a learner pause on any step and understand the state without needing the animation to keep running.
-
-If a user asks for bilingual output, use **language switching**, not mixed-language copy on the same screen.
-
-### 7. Synchronize explanation and motion
-
-This is mandatory.
-
-When the explanation says:
-
-> “The lunar orbit is tilted.”
-
-The visual must reveal or emphasize the two orbital planes and the tilt.
-
-When it says:
-
-> “The umbra reaches Earth.”
-
-The visual must reveal the umbra and its contact with Earth.
-
-Avoid captions that merely describe a scene that looks almost identical to the previous step.
-
-### 8. Derive video narration and subtitles from the same steps
-
-For MP4/GIF workflows, the step copy should also provide the narration/subtitle source.
-
-Recommended derived outputs:
+For new showcase-quality explainers, prefer the stage-first UI in:
 
 ```text
-output/
-├── video.mp4
-├── preview.gif
-├── poster.png
-├── narration.md
-├── subtitles.zh-CN.srt
-└── storyboard.md
+src/runtime/stage-player.ts
+src/runtime/stage-player.css
 ```
 
-Do not maintain a separate script that can silently drift away from the visual timeline.
+But treat it as a view, not a required visual template. A topic may use a different UI if that teaches better.
 
-### 9. Build and run visual QA
+### 7. Default to stage-first interaction
 
-Inside the Loop Animation repository:
+The visual explanation should dominate the screen.
+
+Prefer:
+
+- large uninterrupted visual stage
+- one concise lower-third explanation
+- chapter/storyline navigation integrated into the edge of the frame
+- optional deeper explanation on demand
+- lightweight anchored labels near the object they explain
+
+Avoid turning every explainer into a dashboard with permanent left/right panels.
+
+The default balance should be roughly:
+
+```text
+70% visual explanation
+30% text / controls
+```
+
+If the animation already explains a fact visually, do not repeat it with a paragraph.
+
+### 8. Synchronize narration and motion
+
+Every narration change must correspond to a visible change or a new interpretation of the same visible state.
+
+Good:
+
+> “Droplets become heavy enough that gravity wins.”
+
+At that moment cloud particles grow/darken and rain begins smoothly.
+
+Weak:
+
+> narration changes while the scene continues doing almost the same decorative movement.
+
+### 9. Performance contract
+
+Interactive playback should remain smooth on ordinary laptops and phones.
+
+Required practices:
+
+- resize WebGL only when the container size actually changes
+- use `ResizeObserver` / `observeRendererViewport()` instead of `renderer.setSize()` every frame
+- cap device pixel ratio unless the user explicitly needs maximum resolution
+- prefer `THREE.Points` or `InstancedMesh` over dozens/hundreds of individual Mesh particles
+- reuse vectors and temporary objects in hot render loops
+- keep real-time shadows only when they teach something
+- avoid large full-screen `backdrop-filter` layers
+- update chapter text only when the chapter changes
+- update tiny time/progress UI cheaply rather than rebuilding DOM each frame
+
+### 10. Bilingual behavior
+
+When multiple languages are requested:
+
+- default from browser language
+- provide a language switch
+- remember the user's choice
+- keep a whole screen in one language
+
+Never mix Chinese and English versions of the same explanation on screen at once.
+
+### 11. Run visual + boundary QA
+
+Inside this repository:
 
 ```bash
 npm run typecheck
 npm run build
-npm run qa
+npm run qa:water
 ```
 
-`npm run qa` generates a contact sheet plus timestamp metadata. Step boundaries and midpoints are automatically useful QA checkpoints when the timeline receives `steps`.
+QA produces normal checkpoint frames plus **boundary continuity samples** at:
 
-Inspect for:
+```text
+t - 1 frame
+t
+t + 1 frame
+```
 
-- clipping and overlap
-- tiny or low-contrast labels
-- explanation panel covering the visual focus
-- two adjacent steps that look almost identical
-- narration changing before the visual changes
-- misleading geometry
-- abrupt state changes
+Review `boundary-continuity.png` and `report.json`.
+
+A large asymmetric pixel change around a boundary is a warning that a chapter may be causing a visual jump.
+
+Inspect additionally for:
+
+- clipping / overlap
+- dead frames
+- tiny labels
 - weak focal hierarchy
-- poor 9:16 framing
+- captions covering the subject
+- narration changing before motion
+- misleading geometry
+- poor vertical and landscape framing
 
-Also run landscape QA when relevant:
-
-```bash
-npm run qa:landscape
-```
-
-Fix visible problems before final export.
-
-### 10. Export requested formats
+### 12. Export from the same source
 
 ```bash
 npm run export:mp4
 npm run export:gif
 npm run export:png
-npm run build
 ```
 
-Outputs:
+The interactive HTML is the source artifact. Video, GIF, poster, subtitles and narration should derive from the same deterministic timeline.
 
-- HTML → `dist/`
-- MP4 → `.output/video.mp4`
-- GIF → `.output/preview.gif`
-- PNG → `.output/poster.png`
+## Visual grammar
 
-For custom output dimensions, call the exporter directly:
+Choose only what helps:
 
-```bash
-node scripts/export.mjs --format mp4 --width 1920 --height 1080 --fps 60
-```
+- `flow` — matter, packets, energy, signals
+- `scale` — size and orders of magnitude
+- `inside` — anatomy, layers, architecture
+- `compare` — mechanisms or outcomes
+- `cause-effect` — causal chains and feedback loops
+- `timeline` — change through time
+- `orbit/spatial` — geometry and spatial relationships
+- `simulation` — adjustable parameters
 
 ## Visual quality rules
 
 Prefer:
 
-- one visual idea per step
-- explanations that point to what is visibly changing
-- transformations that preserve object continuity
-- physical or spatial explanation over decorative motion
-- labels anchored to the object they explain
+- persistent objects that transform
+- meaningful motion
 - progressive disclosure
-- strong hierarchy and generous negative space
-- restrained camera movement
-- responsive composition that survives both 9:16 and 16:9
+- strong focal hierarchy
+- generous negative space
+- restrained cameras
+- short anchored labels
+- visual metaphors that remain physically coherent
 
 Avoid:
 
 - generic glowing cards
-- neon gradients used only as decoration
-- random particles without explanatory meaning
+- dashboard chrome around every animation
+- random particles
 - constant zooming
-- large text blocks
-- one caption for several unrelated changes
-- several steps with nearly identical frames
-- objects appearing and disappearing without conceptual reason
-- more than two simultaneous focal points
-- tiny labels baked into 3D geometry
-- frame-rate-dependent simulation during deterministic export
-
-## Aspect ratios
-
-Default to responsive HTML. For export:
-
-- `1920x1080` — landscape / Bilibili / YouTube
-- `1080x1920` — vertical / Shorts / Douyin / Reels
-- `1080x1440` — 3:4 social post
-- `1080x1080` — square
-
-Do not hard-code composition for one viewport. Re-check camera framing, narration panels, DOM overlays, and label placement after aspect-ratio changes.
+- paragraphs covering the visual subject
+- hard visibility switches at chapter boundaries
+- recreating the same object in every chapter
+- camera keyframes that do not meet continuously
+- frame-rate-dependent simulation
 
 ## Working in this repository
 
 For a new explainer:
 
-1. Read the nearest example in `src/examples/`.
-2. Create a topic storyboard under `examples/<topic>/storyboard.md`.
-3. Define 5–8 steps before writing Three.js code.
-4. Reuse `src/runtime/animation.ts`; do not rewrite the timeline/export pipeline without a reason.
-5. Add the new scene under `src/examples/<topic>/`.
-6. Pass the step definitions into `DeterministicTimeline`.
-7. Add guided step UI for HTML.
-8. Run typecheck, build, QA, then the requested exports.
-9. Update README examples when the new explainer is polished enough to showcase.
+1. Read `src/examples/water/main.ts` first for the current continuous-timeline pattern.
+2. Define 5–8 chapters as story metadata.
+3. Design one continuous world state across the whole duration.
+4. Reuse `DeterministicTimeline`.
+5. Use `observeRendererViewport()` for resizing.
+6. Prefer `StagePlayer` for a stage-first starting point, but customize presentation when the topic needs it.
+7. Use absolute-time curves/envelopes instead of chapter-conditioned visual states.
+8. Run typecheck, build, normal QA and boundary QA.
+9. Export requested formats from the same timeline.
 
 ## Completion criteria
 
 A task is complete only when:
 
-- the concept is factually coherent
-- the storyboard and step breakdown exist before implementation
-- every step has narration + a visible state change
-- previous / next step navigation works in HTML
+- the concept is coherent
+- the visual world remains continuous across chapter boundaries
 - deterministic seeking works
-- HTML is responsive
-- bilingual output uses language switching rather than mixed copy
-- QA output has been inspected
-- requested export formats succeed
-- the result still teaches when paused on any individual step
+- chapter navigation works without changing the underlying world model
+- playback is smooth
+- explanatory UI does not dominate the visual
+- bilingual output switches cleanly
+- boundary QA has no unexplained jumps
+- requested exports succeed
+- the result still teaches when paused at meaningful timestamps
