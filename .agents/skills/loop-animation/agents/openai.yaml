@@ -1,0 +1,8 @@
+interface:
+  display_name: "Loop Animation"
+  short_description: "Create interactive Three.js explainers and export HTML, MP4, GIF, or PNG."
+  brand_color: "#0B1020"
+  default_prompt: "Use Loop Animation to turn this concept into a polished interactive explainer with deterministic rendering and visual QA."
+
+policy:
+  allow_implicit_invocation: true
