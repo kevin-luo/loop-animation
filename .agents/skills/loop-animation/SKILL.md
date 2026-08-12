@@ -24,6 +24,74 @@ The world is a deterministic function of absolute time. Chapters are narration/n
 
 Never let a chapter number become the source of truth for the visual world.
 
+## Invocation contract
+
+Users should not need to learn this architecture before using the Skill.
+
+A valid request can be as short as:
+
+```text
+$loop-animation
+
+Explain why airplanes can fly.
+```
+
+When the user omits non-critical production details, **choose sensible defaults and continue**. Do not turn a simple animation request into a long questionnaire.
+
+Default assumptions unless the request says otherwise:
+
+```text
+Audience: general audience
+Language: user's language
+Duration: 30 seconds
+Aspect ratio: 16:9
+Chapters: 5–7
+Primary output: interactive HTML
+Secondary output: MP4 when FFmpeg is available
+Captions: SRT/VTT when narration exists
+Interaction: play/pause + draggable timeline + chapter navigation + deeper explanation
+Art direction: topic-appropriate, stage-first, restrained UI
+Continuity QA: strict
+```
+
+Ask a clarifying question only when ambiguity would materially change factual correctness, required source material, safety, or the core visual mechanism.
+
+### Recommended full request
+
+Users who want more control can provide:
+
+```text
+$loop-animation
+
+Explain: <topic>
+Audience: <general / student / developer / expert>
+Language: <language>
+Duration: <seconds>
+Aspect ratio: <16:9 / 9:16 / 1:1>
+Outputs: <HTML / MP4 / GIF / PNG / SRT/VTT>
+
+Optional:
+- visual style or references
+- must-show mechanism
+- interaction requirements
+- constraints
+```
+
+Do not require implementation details such as shader names, camera curves, particle APIs, or Story Manifest fields from the user. Those are responsibilities of this Skill.
+
+### Execution behavior
+
+When operating inside this repository:
+
+1. Inspect the relevant runtime and nearest example before editing.
+2. Briefly state the intended learning goal, visual grammar, and continuous-world plan.
+3. Implement instead of repeatedly asking for approval on routine details.
+4. Run typecheck/build and the relevant strict QA.
+5. If QA fails, fix the implementation and rerun it.
+6. Finish with a concise handoff containing the preview route, changed files, export commands, and QA status.
+
+Never claim that a generated raster/image asset was added if the generation or upload step actually failed.
+
 ## Required workflow
 
 ### 1. Define one learning goal
@@ -80,6 +148,8 @@ Use each layer for what it does best.
 - anything that looks obviously weak when rebuilt from primitive SVG shapes
 
 Pure SVG / primitive geometry is still appropriate for diagrams, algorithms and mechanisms. It is not the default art direction for a showcase scene when richer visual treatment improves understanding.
+
+If external/generated art is unavailable, improve the procedural/shader treatment and keep the asset boundary clean. Do not silently replace a promised high-fidelity asset with an unrelated placeholder.
 
 ### 3. Break the topic into 5–8 chapters
 
@@ -225,6 +295,8 @@ Prefer:
 - deeper explanation on demand
 - lightweight anchored labels
 - language switching instead of mixed bilingual screens
+- an unobtrusive first-run usage hint
+- fullscreen for detailed scenes when supported
 
 Avoid permanent dashboard sidebars unless the topic genuinely benefits from them.
 
@@ -234,6 +306,8 @@ Target roughly:
 70% visual explanation
 30% text / controls
 ```
+
+Controls and captions must not cover the main subject. On small screens, simplify labels before shrinking everything into unreadable UI.
 
 ### 10. Synchronize narration and motion
 
@@ -262,6 +336,7 @@ Required practices:
 - avoid large permanent `backdrop-filter` layers
 - update chapter text only when chapter changes
 - derive all export-critical state from absolute time
+- do not eagerly run several heavy WebGL previews on a landing page; lazy-load non-primary demos near the viewport
 
 ### 12. Bilingual behavior
 
@@ -317,6 +392,7 @@ Also inspect:
 - misleading geometry
 - poor mobile/landscape framing
 - narration changing before the mechanism becomes visible
+- first-run controls being understandable without a README
 
 ### 14. Export from one source
 
@@ -389,9 +465,11 @@ A task is complete only when:
 - the world remains continuous across chapter boundaries
 - deterministic seeking works
 - playback is smooth
+- first-run interaction is discoverable without reading source code
 - explanatory UI does not dominate the visual
 - bilingual switching is clean
 - Story Manifest matches timing and active language
 - boundary QA has no unexplained jumps
 - requested visual/story exports succeed
 - the result still teaches when paused at meaningful timestamps
+- the final handoff tells the user exactly how to preview, edit and export the result
