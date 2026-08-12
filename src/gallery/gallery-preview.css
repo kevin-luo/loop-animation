@@ -1,0 +1,21 @@
+/* Gallery previews are media, not embedded apps. Keep the landing page cheap. */
+.demo-frame-wrap{isolation:isolate;background:radial-gradient(circle at 50% 30%,rgba(64,96,140,.18),transparent 44%),linear-gradient(180deg,#090d13,#05070a)}
+.demo-poster,.demo-preview-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.demo-poster{z-index:0;opacity:0;transform:scale(1.008);transition:opacity .28s ease,transform .65s ease;filter:saturate(.92) contrast(1.02)}
+.demo-frame-wrap.is-poster-ready .demo-poster{opacity:1;transform:scale(1)}
+.demo-preview-video{z-index:1;opacity:0;pointer-events:none;background:#05070a;transition:opacity .24s ease}
+.demo-frame-wrap.is-previewing .demo-preview-video{opacity:1}
+.demo-frame-wrap:before{content:'';position:absolute;inset:0;z-index:2;pointer-events:none;background:linear-gradient(180deg,rgba(5,8,13,.03),rgba(4,6,10,.08) 58%,rgba(4,6,10,.38));opacity:.8}
+.demo-frame-wrap.is-poster-error:after{content:'Preview unavailable · open interactive';position:absolute;inset:0;z-index:2;display:grid;place-items:center;color:#697587;font:10px 'SFMono-Regular',Consolas,monospace;letter-spacing:.08em;text-transform:uppercase}
+.preview-play{position:absolute;z-index:6;left:50%;top:50%;transform:translate(-50%,-50%);display:inline-flex;align-items:center;gap:10px;height:44px;padding:0 16px;border:1px solid rgba(255,255,255,.16);border-radius:999px;background:rgba(5,8,13,.72);color:#f3f6fa;box-shadow:0 14px 38px rgba(0,0,0,.3);backdrop-filter:blur(10px);cursor:pointer;transition:transform .2s ease,background .2s ease,border-color .2s ease,opacity .2s ease}
+.preview-play:hover{transform:translate(-50%,-50%) scale(1.035);background:rgba(12,17,24,.9);border-color:rgba(255,255,255,.28)}
+.preview-play.is-active{top:auto;bottom:18px;transform:translateX(-50%);height:36px;padding:0 13px;background:rgba(5,8,13,.82)}
+.preview-play.is-active:hover{transform:translateX(-50%) scale(1.025)}
+.preview-play-icon{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#f0f4f9;color:#090c11;font-size:9px;padding-left:1px}
+.preview-play.is-active .preview-play-icon:before{content:'■';font-size:7px}.preview-play.is-active .preview-play-icon{font-size:0;padding:0}
+.preview-play-text{font-size:11px;font-weight:700;letter-spacing:.01em;white-space:nowrap}
+.frame-overlay{z-index:4}.live-pill,.demo-number{z-index:7}
+.demo-card:hover .demo-poster{transform:scale(1.012)}
+.demo-card--featured .demo-frame-wrap{min-height:360px}
+@media(max-width:700px){.preview-play{height:40px;padding:0 13px}.preview-play-text{font-size:10px}.demo-card--featured .demo-frame-wrap{min-height:0}}
+@media(prefers-reduced-motion:reduce){.demo-poster,.demo-preview-video,.preview-play{transition:none}.demo-card:hover .demo-poster{transform:none}}
