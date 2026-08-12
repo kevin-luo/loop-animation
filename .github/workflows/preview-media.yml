@@ -33,20 +33,22 @@ jobs:
             sudo apt-get install -y ffmpeg
           fi
       - run: npm run build
-      - name: Render README preview from the real Three.js demo
+      - name: Render README previews from the real Three.js demos
         run: |
-          rm -rf .preview docs/media/eclipse.gif
-          node scripts/export.mjs --format gif --demo eclipse --width 800 --height 450 --fps 12 --output .preview
+          rm -rf .preview docs/media/eclipse.gif docs/media/water.gif
+          node scripts/export.mjs --format gif --demo eclipse --width 960 --height 540 --fps 12 --output .preview/eclipse
+          node scripts/export.mjs --format gif --demo water --width 960 --height 540 --fps 12 --output .preview/water
           mkdir -p docs/media
-          cp .preview/eclipse.gif docs/media/eclipse.gif
-      - name: Commit refreshed preview
+          cp .preview/eclipse/eclipse.gif docs/media/eclipse.gif
+          cp .preview/water/water.gif docs/media/water.gif
+      - name: Commit refreshed previews
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/media/eclipse.gif
+          git add docs/media/eclipse.gif docs/media/water.gif
           if git diff --cached --quiet; then
-            echo "Preview unchanged"
+            echo "Previews unchanged"
             exit 0
           fi
-          git commit -m "docs: refresh generated animation preview [skip ci]"
+          git commit -m "docs: refresh generated animation previews [skip ci]"
           git push
