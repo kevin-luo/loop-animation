@@ -1,8 +1,8 @@
 # Loop Animation
 
 <p align="center">
-  <strong>Turn concepts into interactive explainers with Codex + Three.js.</strong><br/>
-  把知识点变成可交互的 Three.js 科普动画，并从同一份源码导出 HTML、MP4、GIF 和 PNG。
+  <strong>Turn concepts into guided interactive explainers with Codex + Three.js.</strong><br/>
+  用 Codex + Three.js，把知识点做成真正可以逐步讲解、交互和导出的视频级动画。
 </p>
 
 <p align="center">
@@ -16,53 +16,50 @@
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-blue.svg" />
   <img alt="Three.js" src="https://img.shields.io/badge/Three.js-0.185-black" />
   <img alt="Codex Skill" src="https://img.shields.io/badge/Codex-Skill-111827" />
-  <img alt="Version" src="https://img.shields.io/badge/version-0.3.0-6b7280" />
+  <img alt="Version" src="https://img.shields.io/badge/version-0.4.0-6b7280" />
 </p>
 
-> **Don't animate text. Animate ideas.**  
-> **别让文字动起来，让知识本身动起来。**
+> **Don't animate text. Animate ideas — and explain what changes.**  
+> **别让文字动起来。让知识本身动起来，而且每一步都要讲清楚“为什么变”。**
 
 <p align="center">
-  <a href="https://kevin-luo.github.io/loop-animation/?demo=eclipse">
-    <img src="docs/media/eclipse.gif" alt="Loop Animation eclipse demo" width="800" />
+  <a href="https://kevin-luo.github.io/loop-animation/?demo=water">
+    <img src="docs/media/water.gif" alt="Loop Animation water cycle demo" width="820" />
   </a>
 </p>
 
 <p align="center">
-  <sub>This GIF is generated automatically from the real Three.js scene by Puppeteer + FFmpeg. No hand-made mockup.</sub><br/>
-  <sub>上面的 GIF 由仓库里的真实 Three.js 场景通过 Puppeteer + FFmpeg 自动渲染生成。</sub>
+  <sub>The preview above is rendered automatically from the real Three.js scene by Puppeteer + FFmpeg.</sub><br/>
+  <sub>上面的 GIF 由真实 Three.js 场景通过 Puppeteer + FFmpeg 自动生成，不是手工宣传图。</sub>
 </p>
-
-Loop Animation is an open-source **Codex Skill + deterministic Three.js animation runtime** for educational explainers. The interactive HTML is the source artifact. MP4, GIF, PNG and visual-QA frames are deterministic render targets of the same timeline.
-
-```text
-Concept / 知识点
-      ↓
-Learning goal / 教学目标
-      ↓
-Visual grammar / 视觉语法
-      ↓
-Storyboard / 分镜
-      ↓
-Three.js scene
-      ↓
-renderAt(time)
-      ↓
-Interactive HTML
-   ┌──────┼────────┬──────────┐
-   ↓      ↓        ↓          ↓
-  MP4    GIF      PNG     Visual QA
-```
 
 ## Live examples / 在线实例
 
-| Example | Visual grammar | Live demo |
-|---|---|---|
-| Solar eclipse / 日食 | Orbit · Spatial | [Open](https://kevin-luo.github.io/loop-animation/?demo=eclipse) |
-| DNS resolution / DNS 解析 | Flow · Network | [Open](https://kevin-luo.github.io/loop-animation/?demo=dns) |
-| Binary search / 二分查找 | Algorithm · Process | [Open](https://kevin-luo.github.io/loop-animation/?demo=binary) |
+| Example | Visual grammar | Interaction | Live |
+|---|---|---|---|
+| Water cycle / 水循环 | Earth system · Flow | 5 guided steps | [Open](https://kevin-luo.github.io/loop-animation/?demo=water) |
+| Solar eclipse / 日食 | Orbit · Spatial | 6 guided steps | [Open](https://kevin-luo.github.io/loop-animation/?demo=eclipse) |
+| DNS resolution / DNS 解析 | Network · Flow | deterministic timeline | [Open](https://kevin-luo.github.io/loop-animation/?demo=dns) |
+| Binary search / 二分查找 | Algorithm · Process | deterministic timeline | [Open](https://kevin-luo.github.io/loop-animation/?demo=binary) |
 
-The gallery itself is live at: **https://kevin-luo.github.io/loop-animation/**
+**Gallery:** https://kevin-luo.github.io/loop-animation/
+
+```text
+Concept / 知识点
+        ↓
+5–8 teachable steps / 教学步骤
+        ↓
+Narration + visible change / 解说 + 对应画面变化
+        ↓
+Three.js scene + Lesson Shell
+        ↓
+renderAt(time)
+        ↓
+┌──────────────┬────────┬───────┬───────┐
+│ Interactive  │ MP4    │ GIF   │ PNG   │
+│ HTML lesson  │ video  │ demo  │ poster│
+└──────────────┴────────┴───────┴───────┘
+```
 
 ---
 
@@ -70,49 +67,50 @@ The gallery itself is live at: **https://kevin-luo.github.io/loop-animation/**
 
 ## What is Loop Animation?
 
-Most AI-generated educational videos eventually become animated slides: a title, floating cards, paragraphs, decorative particles and generic transitions.
+Loop Animation is an open-source **Codex Skill + guided lesson UI + deterministic Three.js rendering runtime** for educational explainers.
 
-Loop Animation gives Codex a more opinionated production workflow:
+The project is built around one idea: an educational animation should not be a slide deck with moving decorations. Every teaching step should create a meaningful visual change that helps the learner understand the mechanism.
 
-1. verify the concept;
-2. define one learning goal;
-3. choose a visual grammar;
-4. storyboard before coding;
-5. build the explanation as a spatial Three.js scene;
-6. drive every visible state from absolute time;
-7. inspect representative frames;
-8. export multiple formats from the same source.
+A normal Loop Animation lesson separates the UI into four zones:
 
-The goal is not simply to create motion. The motion should make the mechanism easier to understand.
+```text
+┌─────────────┬──────────────────────────────┬───────────────┐
+│ Step rail   │ Main visual stage            │ Explanation   │
+│             │                              │               │
+│ 01          │ Three.js scene               │ What happens  │
+│ 02          │ labels + focused callouts    │ What to watch │
+│ 03          │                              │ Key idea      │
+└─────────────┴──────────────────────────────┴───────────────┘
+┌────────────────────────────────────────────────────────────┐
+│ Reset · Play/Pause · deterministic scrubber               │
+└────────────────────────────────────────────────────────────┘
+```
 
-## What is included in v0.3?
+The explanation never needs to cover the primary visual stage.
 
-- **Codex-native repo Skill** at `.agents/skills/loop-animation/`
-- **Live GitHub Pages Gallery** with running Three.js demos
-- **Three complete example explainers**
-  - solar eclipse — spatial/orbit explanation
-  - DNS resolution — network-flow explanation
-  - binary search — algorithm/process explanation
-- **Interactive HTML** — play, pause, seek and responsive layouts
-- **Deterministic rendering** — every frame is derived from `renderAt(time)`
-- **Multi-format export** — HTML, MP4, GIF and PNG
-- **Multi-demo exporter** — choose `eclipse`, `dns` or `binary`
-- **Visual QA** — generate scene-aware contact sheets before shipping
-- **Vertical and landscape rendering**
-- **CI-safe Puppeteer rendering**
-- **Automatically generated README preview GIF**
-- **GitHub Pages auto deployment**
+## v0.4 highlights
+
+- **Codex-native Skill** in `.agents/skills/loop-animation/`
+- **Reusable guided lesson shell** in `src/runtime/lesson-shell.ts`
+- left-side clickable teaching steps
+- large independent Three.js stage
+- right-side narration / what-to-watch / key takeaway
+- previous / next step controls
+- play / pause / reset / timeline scrubbing
+- full Chinese / English language switching — no mixed-language UI
+- deterministic `renderAt(time)` runtime
+- MP4 / GIF / PNG export from the same source
+- automated visual QA contact sheets
+- GitHub Pages live Gallery
+- real README GIFs rendered by GitHub Actions
+- four demo routes, including new guided **Water Cycle** and redesigned **Solar Eclipse** lessons
 
 ## Requirements
-
-Install:
 
 - Node.js 22+
 - npm
 - FFmpeg for MP4/GIF export
-- an environment where Puppeteer/Chromium can run
-
-Check your environment:
+- Chromium/Puppeteer-compatible environment
 
 ```bash
 node -v
@@ -131,167 +129,196 @@ npm run dev
 
 Open the Vite URL printed in the terminal.
 
-The root page is the example gallery. You can also open a specific demo by query parameter:
+Direct demo routes:
 
 ```text
+?demo=water
 ?demo=eclipse
 ?demo=dns
 ?demo=binary
 ```
 
-Useful commands:
+## Use with Codex
 
-```bash
-npm run dev                 # development gallery + demos
-npm run typecheck           # TypeScript check
-npm run build               # static production build → dist/
-npm run qa                  # QA the default eclipse demo
-npm run qa:landscape        # landscape QA for the default demo
-npm run export:mp4          # default eclipse → .output/eclipse.mp4
-npm run export:gif          # default eclipse → .output/eclipse.gif
-npm run export:png          # default eclipse → .output/eclipse-poster.png
-npm run skill:install       # install Skill into ~/.agents/skills/
-```
-
-## Use it with Codex
-
-### Method A — repo-scoped Skill (recommended)
-
-Clone the repository and work inside it:
-
-```bash
-git clone https://github.com/kevin-luo/loop-animation.git
-cd loop-animation
-npm install
-```
-
-The repository contains:
+The repo contains a repo-scoped Codex Skill:
 
 ```text
 .agents/skills/loop-animation/SKILL.md
 ```
 
-Invoke the Skill explicitly:
+Inside the repository, invoke:
 
 ```text
 $loop-animation
 ```
 
-Example:
+Example prompt:
 
 ```text
 $loop-animation
 
-Explain why seasons happen.
+Explain how the water cycle works.
 
 Audience: general audience
-Duration: 45 seconds
-Format: 9:16
 Language: English
+Duration: 35 seconds
+Format: 16:9
 Outputs: interactive HTML + MP4 + GIF
 
 Requirements:
-- show Earth's axial tilt spatially
-- keep the Sun and Earth visible across scenes
-- avoid slide-like cards
-- let the viewer scrub the timeline
-- run visual QA before final export
+- split the explanation into 5 teachable steps
+- keep the main animation stage unobstructed
+- every step must cause a meaningful visual change
+- provide previous / next step navigation
+- provide play/pause and a scrub-able timeline
+- show “what to watch” and one key takeaway for each step
+- run visual QA before export
 ```
 
-Technical example:
+A technical example:
 
 ```text
 $loop-animation
 
-Create an interactive explainer for how an HTTP request travels through:
-browser → DNS → CDN → origin server → browser.
+Explain how a TCP three-way handshake works.
 
 Audience: junior developers
-Duration: 35 seconds
+Duration: 30 seconds
 Format: 16:9
-Outputs: HTML + 1080p MP4
+Language: Chinese
+Outputs: HTML + MP4
 
 Requirements:
-- use moving packets as the primary visual language
-- preserve node positions across scenes
-- keep labels short
-- show request and response as different states
-- run visual QA before export
+- Client and Server keep stable positions
+- visualize SYN, SYN-ACK and ACK as moving packets
+- explain one state transition per step
+- use the guided lesson shell
+- do not place narration on top of the network animation
 ```
 
-### Method B — install the Skill globally for your user
-
-From the cloned repository:
+## Install the Skill globally
 
 ```bash
 npm run skill:install
 ```
 
-It copies the Skill to:
+Installed to:
 
 ```text
 $HOME/.agents/skills/loop-animation
 ```
 
-Overwrite an existing installation:
+Overwrite an existing copy:
 
 ```bash
 npm run skill:install:force
 ```
 
-Restart Codex if the Skill list does not refresh immediately.
+## Guided lesson model
 
-## Recommended prompt structure
+Each normal explainer should have 5–8 steps. Each step should define:
 
-You usually only need:
+```ts
+{
+  id: 'precipitation',
+  start: 10,
+  end: 15,
+
+  // localized copy
+  nav: 'Precipitation',
+  title: 'Cloud droplets grow until gravity wins',
+  body: '...',
+  watch: 'Watch the rain fall toward the mountain and soil.',
+  key: 'Precipitation returns atmospheric water to the surface.'
+}
+```
+
+The important rule is:
 
 ```text
-$loop-animation
-
-Topic: <what should be explained>
-Audience: <who will watch>
-Duration: <seconds>
-Format: <16:9 / 9:16 / 3:4 / square>
-Outputs: <HTML / MP4 / GIF / PNG>
-
-Requirements:
-- <the mechanism that must be visually explained>
-- <important objects that should persist>
-- <interaction requirement if useful>
-- run visual QA before export
+new explanation
+      ↓
+new visible state
 ```
 
-The Skill should decide the visual grammar before it starts writing animation code.
+If the text changes but the visual state is almost identical, the step is not finished.
 
-## Live Gallery
+## Shared Lesson Shell
 
-The root production build is a showcase page. It embeds the real running examples instead of screenshots.
+New guided examples should reuse:
 
-```bash
-npm run dev
+```ts
+import { createLessonShell } from '../../runtime/lesson-shell';
 ```
 
-Then open the home page and choose:
+Minimal setup:
 
-- **Eclipse** — spatial alignment and orbit geometry
-- **DNS** — packet movement across a network hierarchy
-- **Binary Search** — shrinking search space over time
+```ts
+const ui = createLessonShell(root, {
+  steps: STEPS,
+  duration: 30,
+  canvasAriaLabel: 'Interactive explainer',
+});
 
-Direct URLs use query parameters, so one static build can host multiple explainers:
+const controller = new DeterministicTimeline({
+  duration: 30,
+  steps: STEPS,
+  onRender(time) {
+    ui.renderStep(time, copy[language]);
+    ui.renderTime(time);
 
-```text
-/?demo=eclipse
-/?demo=dns
-/?demo=binary
+    // Derive all Three.js state from absolute time.
+    renderer.render(scene, camera);
+  },
+});
+
+window.__LOOP_ANIMATION__ = controller;
+ui.bindController(controller);
 ```
 
-For lightweight Gallery cards, the site uses:
+The shared shell provides:
 
-```text
-?demo=eclipse&embed=1
+- step rail;
+- progress pills;
+- explanation panel;
+- what-to-watch block;
+- key-idea block;
+- previous/next controls;
+- reset;
+- timeline scrubber;
+- responsive layout;
+- lightweight `embed=1` mode for Gallery previews.
+
+## Deterministic timeline
+
+Every animation exposes:
+
+```ts
+interface LoopAnimationController {
+  duration: number;
+  ready: boolean;
+  currentTime: number;
+  steps?: readonly TimelineStep[];
+  currentStepIndex?: number;
+  renderAt(time: number): void;
+  play(): void;
+  pause(): void;
+  seek(time: number): void;
+  goToStep?(index: number): void;
+  nextStep?(): void;
+  previousStep?(): void;
+}
 ```
 
-`embed=1` hides playback chrome and automatically starts the same deterministic animation.
+The same timestamp must reconstruct the same conceptual state:
+
+```ts
+renderAt(12.5)
+```
+
+regardless of whether the user reached it by normal playback, seeking backward, screenshot QA, 30 FPS export or 60 FPS export.
+
+Avoid export-critical state driven by accumulated `deltaTime`, wall-clock time or unseeded randomness.
 
 ## Export HTML
 
@@ -305,29 +332,27 @@ Output:
 dist/
 ```
 
-The static build contains the Gallery and all demo routes.
-
 ## Export MP4
 
-Default example:
+Default demo:
 
 ```bash
 npm run export:mp4
 ```
 
-Output:
+Water cycle 1080p landscape:
 
-```text
-.output/eclipse.mp4
+```bash
+npm run export:water:mp4
 ```
 
-Export the DNS demo as landscape 1080p:
+Or manually:
 
 ```bash
 npm run build
 node scripts/export.mjs \
   --format mp4 \
-  --demo dns \
+  --demo water \
   --width 1920 \
   --height 1080 \
   --fps 30
@@ -336,211 +361,119 @@ node scripts/export.mjs \
 Output:
 
 ```text
-.output/dns.mp4
-```
-
-Vertical binary-search video:
-
-```bash
-npm run build
-node scripts/export.mjs \
-  --format mp4 \
-  --demo binary \
-  --width 1080 \
-  --height 1920 \
-  --fps 30
+.output/water.mp4
 ```
 
 ## Export GIF
 
-Default:
-
 ```bash
-npm run export:gif
+npm run export:water:gif
 ```
 
-Output:
-
-```text
-.output/eclipse.gif
-```
-
-Choose another demo:
+Or:
 
 ```bash
 npm run build
-node scripts/export.mjs --format gif --demo dns --width 900 --height 506 --fps 15
+node scripts/export.mjs --format gif --demo eclipse --width 960 --height 540 --fps 15
 ```
 
-GIF is useful for GitHub README previews and quick social sharing. Use MP4 for final video quality.
+Use GIF for README/social previews. Use MP4 for final video quality.
 
 ## Export PNG
-
-```bash
-npm run export:png
-```
-
-Output:
-
-```text
-.output/eclipse-poster.png
-```
-
-Choose demo and timestamp:
 
 ```bash
 npm run build
 node scripts/export.mjs \
   --format png \
-  --demo binary \
-  --time 10.8 \
+  --demo water \
+  --time 13 \
   --width 1920 \
   --height 1080
 ```
 
 ## Visual QA
 
-Code can compile while the animation is visually broken. Visual QA is therefore part of the workflow.
-
-Default eclipse QA:
+Generate a contact sheet from meaningful timeline checkpoints:
 
 ```bash
 npm run qa
 ```
 
+Water cycle landscape QA:
+
+```bash
+npm run qa:water
+```
+
 Output:
 
 ```text
-.output/qa/eclipse/
+.output/qa/<demo>/
 ├── contact-sheet.png
 ├── report.json
 └── frames/
 ```
 
-QA another demo:
+Inspect:
 
-```bash
-npm run build
-node scripts/qa.mjs --demo dns
-```
-
-Landscape QA:
-
-```bash
-npm run build
-node scripts/qa.mjs \
-  --demo binary \
-  --width 1920 \
-  --height 1080
-```
-
-Each example defines scene-aware `qaTimes`, so the contact sheet includes important boundaries and state changes instead of only evenly spaced timestamps.
-
-Inspect the sheet for:
-
-- clipped labels;
-- overlapping objects;
-- unreadable text;
-- weak focal hierarchy;
-- dead or nearly identical scenes;
-- abrupt transitions;
-- poor 9:16 composition;
+- whether explanation panels overlap the stage;
+- clipping and tiny labels;
+- dead / nearly identical steps;
 - misleading geometry;
-- visual states that only make sense when narration is present.
+- abrupt camera changes;
+- weak focal hierarchy;
+- poor landscape / vertical composition;
+- steps whose narration changes but visuals do not.
 
-## Deterministic timeline
+## Current examples
 
-Every explainer exposes:
-
-```ts
-interface LoopAnimationController {
-  duration: number;
-  ready: boolean;
-  qaTimes?: readonly number[];
-  renderAt(time: number): void;
-  play(): void;
-  pause(): void;
-  seek(time: number): void;
-  destroy(): void;
-}
-```
-
-The controller is attached to:
-
-```ts
-window.__LOOP_ANIMATION__
-```
-
-The important invariant is:
-
-```ts
-renderAt(8.0)
-```
-
-should produce the same conceptual frame whether it is reached by:
-
-- normal playback;
-- dragging the scrubber;
-- jumping backward;
-- 30 FPS export;
-- 60 FPS export;
-- screenshot QA.
-
-Avoid export-critical state driven by accumulated `deltaTime`, unseeded randomness or wall-clock time.
-
-## Create a new explainer manually
-
-Codex is the intended authoring experience, but the runtime is small enough to use directly.
-
-Create:
+### Water Cycle
 
 ```text
-examples/my-topic/storyboard.md
-src/examples/my-topic/main.ts
-src/examples/my-topic/style.css
+Evaporation
+   ↓
+Vapor transport + condensation
+   ↓
+Precipitation
+   ↓
+Surface runoff
+   ↓
+Infiltration + groundwater
 ```
 
-Reuse the runtime:
+The scene contains programmatic ocean, terrain, mountains, clouds, river, rain, runoff and underground-water motion.
 
-```ts
-import { DeterministicTimeline } from '../../runtime/animation';
+Storyboard:
 
-const controller = new DeterministicTimeline({
-  duration: 20,
-  qaTimes: [0, 4, 8, 12, 16, 19.9],
-  onRender(time) {
-    // Derive every visible state from absolute `time`.
-    renderer.render(scene, camera);
-  },
-});
-
-window.__LOOP_ANIMATION__ = controller;
+```text
+examples/water/storyboard.md
 ```
 
-Register the demo in `src/main.ts` if you want it to appear as a route, and add a card in `src/gallery/main.ts` if you want it in the public showcase.
+### Solar Eclipse
 
-Then run:
-
-```bash
-npm run typecheck
-npm run build
+```text
+Spatial roles
+   ↓
+5.1° orbital tilt
+   ↓
+Orbital nodes
+   ↓
+Umbra + penumbra
+   ↓
+Observer locations
+   ↓
+Why eclipses are rare
 ```
 
-For built-in demo IDs you can run the QA/export tools directly. If you introduce a new demo ID, add it to the central routing/export list before using those commands. A shared Example Registry is planned to remove these remaining hard-coded lists.
+The main explanation panel is now outside the Three.js stage so the orbit geometry remains visible.
 
-## Visual grammars
+### DNS Resolution
 
-| Grammar | Best for | Examples |
-|---|---|---|
-| Scale | relative size / distance | atom → cell → human → Earth |
-| Inside | layers / internals | CPU, engine, body, architecture |
-| Flow | moving information or matter | DNS, HTTP, blood, electricity |
-| Compare | mechanism comparison | SSD vs HDD, lungs vs gills |
-| Cause-effect | causal chains | greenhouse effect, feedback loops |
-| Timeline | change over time | universe, evolution, history |
-| Orbit / spatial | geometry in space | eclipse, seasons, tides |
-| Algorithm / process | state reduction / execution | binary search, sorting, scheduling |
-| Simulation | parameter exploration | waves, probability, orbital tilt |
+A packet-flow example through Browser → Resolver → Root → TLD → Authoritative DNS.
+
+### Binary Search
+
+An algorithm/process example showing the search space shrinking after every comparison.
 
 ## Project structure
 
@@ -555,11 +488,11 @@ loop-animation/
 │   ├── pages.yml
 │   └── preview-media.yml
 ├── docs/media/
+│   ├── water.gif
 │   └── eclipse.gif
 ├── examples/
-│   ├── eclipse/storyboard.md
-│   ├── dns/storyboard.md
-│   └── binary/storyboard.md
+│   ├── water/storyboard.md
+│   └── eclipse/storyboard.md
 ├── scripts/
 │   ├── export.mjs
 │   ├── qa.mjs
@@ -568,131 +501,40 @@ loop-animation/
 │   ├── main.ts
 │   ├── gallery/
 │   ├── runtime/
-│   │   └── animation.ts
+│   │   ├── animation.ts
+│   │   ├── lesson-shell.ts
+│   │   └── lesson-shell.css
 │   └── examples/
+│       ├── water/
 │       ├── eclipse/
 │       ├── dns/
 │       └── binary/
-├── references/
-├── index.html
-├── vite.config.ts
 └── package.json
 ```
 
-## Generated preview media
-
-The README GIF is not a hand-made marketing asset. GitHub Actions runs:
-
-```text
-Three.js demo
-    ↓
-Puppeteer deterministic frames
-    ↓
-FFmpeg palette + GIF encoding
-    ↓
-docs/media/eclipse.gif
-```
-
-The workflow lives at:
-
-```text
-.github/workflows/preview-media.yml
-```
-
-This gives the repository a preview that stays tied to the real implementation.
-
 ## Design rules
 
-**Prefer**
+Prefer:
 
-- one visual idea per scene;
+- one teaching question per step;
+- explanation beside the stage, not over it;
+- visible mechanism changes;
 - object continuity;
-- spatial explanation;
-- concise labels anchored to objects;
-- meaningful transformations;
-- restrained camera movement;
-- responsive composition;
-- motion that encodes causality, direction, scale or state.
+- anchored short labels;
+- restrained camera motion;
+- stable composition;
+- complete language switching;
+- layouts that remain readable at 16:9 and 9:16.
 
-**Avoid**
+Avoid:
 
-- generic glowing cards;
-- decorative neon gradients;
-- random particles without teaching value;
+- floating narration cards covering the subject;
+- paragraph-heavy scenes;
+- generic glowing UI everywhere;
+- decorative particles with no explanatory role;
 - constant zooming;
-- large text blocks;
-- unexplained object pop-in/pop-out;
-- tiny 3D text;
-- frame-rate-dependent exports;
-- using animation only as decoration.
-
-## Troubleshooting
-
-### FFmpeg is missing
-
-```bash
-ffmpeg -version
-```
-
-If it is not found, install FFmpeg and reopen the terminal.
-
-### Puppeteer / Chromium does not launch
-
-Run:
-
-```bash
-npm install
-```
-
-The export and QA scripts include CI-safe Chromium flags for Linux environments that do not provide a usable browser sandbox.
-
-### Codex does not see `$loop-animation`
-
-Repo scope:
-
-```text
-.agents/skills/loop-animation/SKILL.md
-```
-
-User scope:
-
-```bash
-npm run skill:install:force
-```
-
-Then restart Codex if necessary.
-
-### Video differs from HTML
-
-Look for:
-
-- unseeded `Math.random()`;
-- cumulative mutations between frames;
-- `deltaTime`-driven export-critical animation;
-- assets that are not ready before the controller reports `ready`;
-- hard-coded composition for only one aspect ratio.
-
-## Roadmap
-
-- [x] Codex repository Skill
-- [x] deterministic Three.js timeline
-- [x] interactive HTML playback
-- [x] MP4 / GIF / PNG export
-- [x] visual-QA contact sheets
-- [x] user-level Skill installer
-- [x] GitHub Pages deployment
-- [x] live multi-example Gallery
-- [x] solar-eclipse spatial example
-- [x] DNS network-flow example
-- [x] binary-search process example
-- [x] generated README GIF from the real renderer
-- [ ] reusable Scale starter template
-- [ ] reusable Timeline starter template
-- [ ] reusable Inside / architecture starter template
-- [ ] subtitle tracks
-- [ ] optional audio / TTS composition
-- [ ] automated visual regression comparison
-- [ ] example registry to remove hard-coded demo IDs
+- changing copy while the visual remains unchanged;
+- mixed Chinese + English UI unless the lesson itself requires both languages.
 
 ---
 
@@ -700,143 +542,35 @@ Look for:
 
 ## Loop Animation 是什么？
 
-Loop Animation 是一个面向 **Codex + Three.js** 的开源科普动画 Skill，同时提供一套确定性动画运行时和导出工具链。
+Loop Animation 是一个开源的 **Codex Skill + Three.js 科普动画运行时 + 分步教学 UI**。
 
-你可以给 Codex 一个知识点：
+它解决的不是“让 AI 生成一个会动的页面”，而是让 Codex 按真正的教学过程生成动画：
 
-```text
-为什么会发生日食？
-DNS 是怎么找到网站的？
-为什么二分查找这么快？
-CPU 缓存为什么能加速？
-原子到底有多小？
-四季为什么会变化？
-```
+1. 先确定一个明确的学习目标；
+2. 拆成 5～8 个能独立讲清楚的步骤；
+3. 每一步都有解说；
+4. 每一步都有对应的画面变化；
+5. 用户可以暂停、切步骤、拖时间轴；
+6. 最终从同一份源码导出 HTML / MP4 / GIF / PNG。
 
-Skill 会要求 Codex 先理解“到底要解释什么”，再选择合适的视觉语言：
+## v0.4 最大变化
 
-```text
-知识点核查
-   ↓
-确定一个教学目标
-   ↓
-选择视觉语法
-   ↓
-先写分镜
-   ↓
-Three.js 场景
-   ↓
-renderAt(time)
-   ↓
-可交互 HTML
-   ↓
-视觉 QA
-   ↓
-HTML / MP4 / GIF / PNG
-```
-
-核心理念：
-
-> **HTML 是源作品，视频、GIF、封面图只是同一条确定性时间轴的不同渲染结果。**
-
-这意味着生成出来的内容可以暂停、拖进度、改变画幅、继续增加交互，同时又能稳定导出为视频。
-
-## V0.3 现在有什么？
-
-目前已经完成：
-
-- Codex 可自动发现的 Repo Skill
-- GitHub Pages 在线 Gallery
-- 3 个真实 Three.js 示例动画
-- 播放 / 暂停 / 时间轴拖动
-- `renderAt(time)` 确定性逐帧渲染
-- HTML 静态构建
-- 多 Demo MP4 导出
-- 多 Demo GIF 导出
-- 多 Demo PNG 导出
-- 竖屏 / 横屏视觉 QA
-- 场景边界 QA 抽帧
-- Contact Sheet 总览图
-- GitHub Pages 自动部署
-- 用户级 Skill 一键安装
-- GitHub Actions 自动生成 README GIF
-
-## 在线看效果
-
-直接打开项目的 **Live Gallery**：
-
-**https://kevin-luo.github.io/loop-animation/**
-
-当前包含：
-
-### 1. 日食 / Eclipse
-
-视觉语法：`Orbit / Spatial`
-
-解释太阳、月球、地球的位置关系，以及月球影子为什么会落到地球上。
-
-在线：
+之前的解说卡片会压在 Three.js 场景上，现在统一改成了**教学工作台布局**：
 
 ```text
-https://kevin-luo.github.io/loop-animation/?demo=eclipse
+左侧                 中间                      右侧
+步骤导航             动画主舞台                当前解说
+01 蒸发              Three.js                 发生了什么
+02 输送                                        看哪里
+03 降水                                        关键点
+
+                    底部
+            重置 / 播放 / 时间轴
 ```
 
-### 2. DNS 域名解析
+也就是说：**动画区域就是动画区域，解说不会再遮住主要画面。**
 
-视觉语法：`Flow / Network`
-
-让查询包真正沿着：
-
-```text
-Browser
-  ↓
-Resolver
-  ↓
-Root DNS
-  ↓
-.com TLD
-  ↓
-Authoritative DNS
-  ↓
-IP 返回
-```
-
-在线：
-
-```text
-https://kevin-luo.github.io/loop-animation/?demo=dns
-```
-
-### 3. 二分查找 / Binary Search
-
-视觉语法：`Algorithm / Process`
-
-通过每次暗掉一半候选区间，让人直接看到“为什么二分查找快”。
-
-在线：
-
-```text
-https://kevin-luo.github.io/loop-animation/?demo=binary
-```
-
-## 环境要求
-
-需要：
-
-- Node.js 22+
-- npm
-- FFmpeg（MP4 / GIF 导出需要）
-- 可以运行 Puppeteer / Chromium 的环境
-
-检查：
-
-```bash
-node -v
-npm -v
-ffmpeg -version
-```
-
-## 第一次运行
+## 快速开始
 
 ```bash
 git clone https://github.com/kevin-luo/loop-animation.git
@@ -845,522 +579,270 @@ npm install
 npm run dev
 ```
 
-打开终端给出的 Vite 地址。
+然后打开终端中 Vite 输出的地址。
 
-现在首页会看到 Gallery，而不是只展示一个 Demo。
+首页是 Gallery，也可以直接打开：
 
-常用命令：
-
-```bash
-npm run dev
-npm run typecheck
-npm run build
-npm run qa
-npm run qa:landscape
-npm run export:mp4
-npm run export:gif
-npm run export:png
+```text
+?demo=water
+?demo=eclipse
+?demo=dns
+?demo=binary
 ```
 
-## 在 Codex 里怎么用
+## 在 Codex 中使用
 
-### 方式一：直接使用仓库内 Skill
-
-```bash
-git clone https://github.com/kevin-luo/loop-animation.git
-cd loop-animation
-npm install
-```
-
-仓库中已经存在：
+仓库内已经包含：
 
 ```text
 .agents/skills/loop-animation/SKILL.md
 ```
 
-在 Codex 中调用：
+直接调用：
 
 ```text
 $loop-animation
 ```
 
-然后描述需求：
+例如：
 
 ```text
 $loop-animation
 
-做一个“为什么会有四季”的科普动画。
+解释水循环是怎么运转的。
 
-受众：普通人
-时长：45 秒
+受众：普通用户
 语言：中文
-画幅：9:16
-输出：HTML + MP4 + GIF
+时长：35 秒
+比例：16:9
+输出：交互 HTML + MP4 + GIF
 
 要求：
-- 必须真正展示地轴倾角和公转关系
-- 太阳和地球尽量保持视觉连续
-- 少文字
-- 不要做成 PPT 卡片动画
-- 可以拖动时间轴
-- 导出前先跑视觉 QA
+- 拆成 5 个教学步骤
+- 每一步都必须产生对应的画面变化
+- 左侧显示步骤导航
+- 中间只放动画主舞台
+- 右侧放当前步骤解说、观察重点、关键点
+- 支持上一步 / 下一步
+- 支持播放暂停和拖动时间轴
+- 导出前运行视觉 QA
 ```
 
-程序员科普示例：
+或者：
 
 ```text
 $loop-animation
 
-做一个“HTTP 请求到底经历了什么”的交互动画。
+解释 TCP 三次握手。
 
-从用户在浏览器输入 URL 开始，展示：
-DNS → CDN → Origin Server → Response。
+受众：初级程序员
+语言：中文
+时长：30 秒
+比例：16:9
 
 要求：
-- 16:9
-- 35 秒
-- 数据包要真的沿节点移动
-- 请求和响应有明显的方向区别
-- 每个节点只保留很短的标签
-- 输出 HTML + 1080P MP4
-- 导出前做视觉 QA
+- Client 和 Server 的位置固定
+- SYN / SYN-ACK / ACK 用数据包移动表示
+- 每个步骤只解释一次状态变化
+- 解说区不能盖住网络动画
+- 最终导出 HTML 和 MP4
 ```
 
-### 方式二：安装为用户级 Skill
+## 全局安装 Skill
 
 ```bash
 npm run skill:install
 ```
 
-会安装到：
+安装到：
 
 ```text
 $HOME/.agents/skills/loop-animation
 ```
 
-覆盖旧版本：
+强制覆盖：
 
 ```bash
 npm run skill:install:force
 ```
 
-之后在其他项目里也可以尝试：
+## 新的教学壳 Lesson Shell
+
+创建新示例时，不需要重新设计一套 UI。
+
+直接：
+
+```ts
+import { createLessonShell } from '../../runtime/lesson-shell';
+
+const ui = createLessonShell(root, {
+  steps: STEPS,
+  duration: 30,
+  canvasAriaLabel: '科普动画',
+});
+```
+
+它默认提供：
+
+- 左侧步骤列表
+- 中间 Three.js Canvas
+- 右侧完整解说
+- 观察重点
+- 关键点
+- 上一步 / 下一步
+- 播放 / 暂停
+- 重置
+- 时间轴
+- 当前步骤进度
+- Gallery iframe 精简模式
+- 响应式布局
+
+## 步骤怎么写？
+
+一个步骤至少包含：
 
 ```text
-$loop-animation
+标题
+正文解释
+观察重点
+关键点
+对应的画面变化
 ```
 
-## 推荐的提示词结构
-
-不用写超长提示词。
-
-建议把下面几个信息说明白：
+例如水循环的“降水”：
 
 ```text
-$loop-animation
+解释：
+云里的小水滴不断碰撞、长大，直到上升气流托不住。
 
-主题：<知识点>
-受众：<普通人 / 学生 / 程序员等>
-时长：<30 秒 / 60 秒等>
-画幅：<16:9 / 9:16 / 3:4 / 1:1>
-输出：<HTML / MP4 / GIF / PNG>
+观察重点：
+雨滴开始从云底落向山地和土壤。
 
-重点：
-- 真正需要解释清楚的机制
-- 哪些对象需要保持视觉连续
-- 是否需要交互
-- 导出前运行视觉 QA
+关键点：
+降水把大气中的水重新送回地表。
+
+动画变化：
+云层变厚 → 雨滴出现 → 雨落到山地和河谷。
 ```
 
-## 导出 HTML
+这里最重要的一条规则是：
 
-```bash
-npm run build
-```
-
-输出：
-
-```text
-dist/
-```
-
-这个目录就是可静态部署的完整网站，包括 Gallery 和 Demo 路由。
+> **文案进入下一步，画面也必须进入下一种可观察状态。**
 
 ## 导出 MP4
 
-默认导出日食：
+默认：
 
 ```bash
 npm run export:mp4
 ```
 
-输出：
+水循环 1080p 横屏：
 
-```text
-.output/eclipse.mp4
+```bash
+npm run export:water:mp4
 ```
 
-导出 DNS 横屏 1080P：
+也可以自定义：
 
 ```bash
 npm run build
 node scripts/export.mjs \
   --format mp4 \
-  --demo dns \
+  --demo water \
   --width 1920 \
   --height 1080 \
-  --fps 30
-```
-
-导出二分查找竖屏：
-
-```bash
-npm run build
-node scripts/export.mjs \
-  --format mp4 \
-  --demo binary \
-  --width 1080 \
-  --height 1920 \
   --fps 30
 ```
 
 ## 导出 GIF
 
 ```bash
-npm run export:gif
+npm run export:water:gif
 ```
 
-默认输出：
+适合 README 和社交平台预览。
 
-```text
-.output/eclipse.gif
-```
-
-指定 DNS：
-
-```bash
-npm run build
-node scripts/export.mjs \
-  --format gif \
-  --demo dns \
-  --width 900 \
-  --height 506 \
-  --fps 15
-```
-
-README 顶部展示的日食 GIF，就是这套真实导出链路自动生成的。
-
-## 导出 PNG 封面
-
-```bash
-npm run export:png
-```
-
-默认：
-
-```text
-.output/eclipse-poster.png
-```
-
-指定 Demo、时间和画幅：
+## 导出 PNG
 
 ```bash
 npm run build
 node scripts/export.mjs \
   --format png \
-  --demo binary \
-  --time 10.8 \
+  --demo water \
+  --time 13 \
   --width 1920 \
   --height 1080
 ```
 
-## 视觉 QA 怎么用
+## Visual QA
 
-动画能编译通过，不代表动画真的好看，也不代表不同画幅下没有遮挡。
-
-默认检查日食：
+普通 QA：
 
 ```bash
 npm run qa
 ```
 
-输出：
+水循环：
+
+```bash
+npm run qa:water
+```
+
+会输出：
 
 ```text
-.output/qa/eclipse/
+.output/qa/<demo>/
 ├── contact-sheet.png
 ├── report.json
 └── frames/
 ```
 
-检查 DNS：
+重点检查：
 
-```bash
-npm run build
-node scripts/qa.mjs --demo dns
-```
+- 解说是否遮住动画；
+- 文案变化后画面有没有同步变化；
+- 标签是否重叠；
+- 主体是否被裁掉；
+- 不同步骤是否看起来几乎一样；
+- 相机运动是否过度；
+- 16:9 / 9:16 构图是否仍然成立。
 
-横屏检查二分查找：
+## 当前最完整的两个示例
 
-```bash
-npm run build
-node scripts/qa.mjs \
-  --demo binary \
-  --width 1920 \
-  --height 1080
-```
-
-每个示例都有自己的 `qaTimes`，会重点抽取转场前后和状态变化位置。
-
-重点看：
-
-- 元素有没有遮挡
-- 文字有没有被裁掉
-- 重点是否明确
-- 画面是否几秒不动
-- 状态切换是否突兀
-- 竖屏是否拥挤
-- 标签是否太小
-- 几何表达是否可能误导知识点
-- 去掉旁白以后，动画本身还能不能大致讲清原理
-
-## 为什么必须使用 `renderAt(time)`？
-
-核心接口：
-
-```ts
-renderAt(time: number)
-```
-
-同一个时间点，比如：
-
-```ts
-renderAt(8.0)
-```
-
-无论用户是：
+### 1. 水循环
 
 ```text
-正常播放到 8 秒
-手动拖到 8 秒
-从 12 秒倒拖到 8 秒
-30FPS 导出第 240 帧
-60FPS 导出第 480 帧
-QA 截取 8 秒
+蒸发
+ ↓
+水汽输送与凝结
+ ↓
+降水
+ ↓
+地表径流
+ ↓
+下渗与地下水
 ```
 
-都应该得到一致的概念状态。
+场景中的海洋、山体、云、雨、河流、地表径流和地下水全部由代码生成并随时间变化。
 
-所以尽量避免：
+### 2. 日食
 
 ```text
-未固定 seed 的随机数
-依赖 deltaTime 累加状态
-依赖系统真实时间
-每一帧在上一帧基础上继续变更关键状态
+建立空间关系
+ ↓
+5.1° 轨道倾角
+ ↓
+轨道交点
+ ↓
+本影与半影
+ ↓
+不同观察位置
+ ↓
+为什么日食不会每个月发生
 ```
 
-## 手动增加一个新的实例
-
-建议目录：
-
-```text
-examples/my-topic/storyboard.md
-src/examples/my-topic/main.ts
-src/examples/my-topic/style.css
-```
-
-使用公共运行时：
-
-```ts
-import { DeterministicTimeline } from '../../runtime/animation';
-
-const controller = new DeterministicTimeline({
-  duration: 20,
-  qaTimes: [0, 4, 8, 12, 16, 19.9],
-  onRender(time) {
-    // 所有关键状态都从绝对时间 time 推导
-    renderer.render(scene, camera);
-  },
-});
-
-window.__LOOP_ANIMATION__ = controller;
-```
-
-如果想显示到 Gallery，需要：
-
-1. 在 `src/main.ts` 注册 Demo；
-2. 在 `src/gallery/main.ts` 增加卡片；
-3. 给 `scripts/export.mjs` 和 `scripts/qa.mjs` 增加对应 Demo ID。
-
-后续 Roadmap 会把这几处硬编码收敛成统一 Example Registry。
-
-## 视觉语法
-
-| 类型 | 适合解释 | 示例 |
-|---|---|---|
-| Scale | 尺度、距离、数量级 | 原子 → 细胞 → 人 → 地球 |
-| Inside | 内部结构、分层 | CPU、发动机、人体、软件架构 |
-| Flow | 信息、能量、物质流动 | DNS、HTTP、血液、电流 |
-| Compare | 两种机制对比 | SSD vs HDD、肺 vs 鱼鳃 |
-| Cause-effect | 因果链 | 温室效应、反馈回路 |
-| Timeline | 时间演变 | 宇宙、进化、历史 |
-| Orbit / Spatial | 空间几何 | 日食、四季、潮汐 |
-| Algorithm / Process | 算法与状态变化 | 二分查找、排序、调度 |
-| Simulation | 参数探索 | 波、概率、轨道倾角 |
-
-## 目前的项目结构
-
-```text
-loop-animation/
-├── .agents/skills/loop-animation/
-├── .github/workflows/
-│   ├── ci.yml
-│   ├── pages.yml
-│   └── preview-media.yml
-├── docs/media/
-│   └── eclipse.gif
-├── examples/
-│   ├── eclipse/
-│   ├── dns/
-│   └── binary/
-├── scripts/
-│   ├── export.mjs
-│   ├── qa.mjs
-│   └── install-skill.mjs
-├── src/
-│   ├── gallery/
-│   ├── runtime/
-│   └── examples/
-│       ├── eclipse/
-│       ├── dns/
-│       └── binary/
-└── README.md
-```
-
-## README 动图是怎么来的？
-
-不是人工做了一张演示 GIF 放上去。
-
-仓库的 GitHub Actions 会真实执行：
-
-```text
-Three.js Demo
-    ↓
-Puppeteer Headless Chrome
-    ↓
-按 renderAt(time) 逐帧截图
-    ↓
-FFmpeg
-    ↓
-docs/media/eclipse.gif
-```
-
-这样以后动画实现变化了，可以重新生成预览，README 展示效果和真实代码保持一致。
-
-## 设计原则
-
-建议：
-
-- 一个场景只强调一个核心视觉点
-- 尽量保持对象连续存在
-- 用空间关系解释空间问题
-- 标签短而明确
-- 动画变化本身要带信息
-- 摄像机运动克制
-- 同时考虑 16:9 和 9:16
-- 能用图形说明，就少放一段文字
-
-尽量避免：
-
-- 所有东西都套发光卡片
-- 没意义的渐变、粒子、漂浮
-- 镜头一直放大缩小
-- 满屏文字
-- 物体无原因突然消失/出现
-- 把大段解释做成“会动的 PPT”
-- 导出效果依赖 FPS
-
-## 常见问题
-
-### 找不到 FFmpeg
-
-```bash
-ffmpeg -version
-```
-
-没有的话安装 FFmpeg，再重新打开终端。
-
-### Puppeteer / Chromium 启动失败
-
-先执行：
-
-```bash
-npm install
-```
-
-当前 exporter 和 QA 脚本已经加入 Linux CI 环境所需的 Chromium sandbox 兼容参数。
-
-### Codex 找不到 `$loop-animation`
-
-仓库模式确认：
-
-```text
-.agents/skills/loop-animation/SKILL.md
-```
-
-全局安装：
-
-```bash
-npm run skill:install:force
-```
-
-如果仍然没有刷新，重启 Codex。
-
-### HTML 看起来正常，导出视频不一样
-
-重点排查：
-
-- `Math.random()` 是否固定 seed
-- 有没有依赖 `deltaTime`
-- 是否存在累加状态
-- 资源是否在 `ready` 前加载完成
-- CSS / Camera 是否只适配单一画幅
-
-## Roadmap
-
-- [x] Codex Repo Skill
-- [x] Three.js 确定性时间轴
-- [x] HTML 交互播放
-- [x] MP4 / GIF / PNG 导出
-- [x] Visual QA Contact Sheet
-- [x] 用户级 Skill 安装
-- [x] GitHub Pages
-- [x] Live Gallery
-- [x] 日食实例
-- [x] DNS 网络流实例
-- [x] 二分查找算法实例
-- [x] 真实渲染 README GIF
-- [ ] Scale 尺度模板
-- [ ] Timeline 时间线模板
-- [ ] Inside / 架构模板
-- [ ] 字幕轨道
-- [ ] 可选 TTS / 音频合成
-- [ ] 自动视觉回归比较
-- [ ] Example Registry
-
-## Contributing
-
-Contributions are welcome, especially:
-
-- new visual grammars and reusable patterns;
-- polished educational examples;
-- export improvements;
-- QA tooling;
-- accessibility improvements;
-- responsive 9:16 / 16:9 composition patterns.
-
-See [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+新版日食已经把步骤和解说移到主舞台之外，Three.js 场景不再被大卡片挡住。
 
 ## License
 
