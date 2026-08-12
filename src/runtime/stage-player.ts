@@ -1,15 +1,10 @@
 import type { AppLanguage } from './i18n';
 import type { LoopAnimationController, TimelineSnapshot, TimelineStep } from './animation';
 import { reveal, stepIndexAt } from './animation';
+import { buildStoryManifest, type StoryChapterCopy } from './story';
 import './stage-player.css';
 
-export interface StageChapterCopy {
-  label: string;
-  title: string;
-  summary: string;
-  details: string;
-  key: string;
-}
+export interface StageChapterCopy extends StoryChapterCopy {}
 
 export interface StagePlayerCopy {
   brand: string;
@@ -162,6 +157,14 @@ export function createStagePlayer(root: HTMLDivElement, options: StagePlayerOpti
   function applyCopy(copy: StagePlayerCopy, language: AppLanguage) {
     currentCopy = copy;
     document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en';
+    window.__LOOP_STORY__ = buildStoryManifest({
+      language,
+      duration: options.duration,
+      topicTitle: copy.topicTitle,
+      topicLead: copy.topicLead,
+      steps: options.steps,
+      chapters: copy.chapters,
+    });
     brand.textContent = copy.brand;
     category.textContent = copy.category;
     topicTitle.textContent = copy.topicTitle;
@@ -295,6 +298,7 @@ export function createStagePlayer(root: HTMLDivElement, options: StagePlayerOpti
   function dispose() {
     unsubscribe?.();
     unsubscribe = null;
+    if (window.__LOOP_STORY__) delete window.__LOOP_STORY__;
   }
 
   return {
