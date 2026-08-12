@@ -24,6 +24,22 @@ try {
   await page.goto(`${baseUrl}?lang=zh`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#builder-topic');
 
+  const heroPrompt = await page.$eval('#hero-prompt', (element) => element.textContent ?? '');
+  assertIncludes(heroPrompt, 'https://github.com/kevin-luo/loop-animation', 'Beginner bootstrap repository');
+  assertIncludes(heroPrompt, '不要让我自己执行 git、npm', 'Beginner no-terminal instruction');
+
+  const howToText = await page.$eval('#howto', (element) => element.textContent ?? '');
+  assertIncludes(howToText, '复制、粘贴、看结果', 'Beginner three-step onboarding');
+  if (howToText.includes('git clone') || howToText.includes('npm install')) {
+    throw new Error('Beginner onboarding leaked developer terminal commands.');
+  }
+
+  const mainCopyButton = await page.$('#hero-copy-main');
+  if (!mainCopyButton) throw new Error('Primary beginner copy button is missing.');
+
+  const codexHref = await page.$eval('a[href^="https://chatgpt.com/codex"]', (element) => element.getAttribute('href') ?? '');
+  if (!codexHref) throw new Error('Open Codex action is missing.');
+
   await page.$eval('#builder-topic', (element) => {
     element.value = '为什么火山会喷发？';
     element.dispatchEvent(new Event('input', { bubbles: true }));
@@ -38,6 +54,8 @@ try {
   assertIncludes(prompt, '45 秒', 'Prompt Builder duration');
   assertIncludes(prompt, '9:16', 'Prompt Builder aspect ratio');
   assertIncludes(prompt, 'strict continuity QA', 'Prompt Builder QA instruction');
+  assertIncludes(prompt, 'https://github.com/kevin-luo/loop-animation', 'Prompt Builder bootstrap repository');
+  assertIncludes(prompt, '不要让我自己执行 git、npm', 'Prompt Builder no-terminal instruction');
 
   const howToLink = await page.$eval('a[href="#howto"]', (element) => element.textContent?.trim() ?? '');
   if (!howToLink) throw new Error('Gallery usage navigation is missing.');
@@ -69,7 +87,8 @@ try {
   if (!playing) throw new Error('Play control did not start playback.');
   await page.click('#story-play');
 
-  console.log('✓ UI smoke: gallery prompt builder');
+  console.log('✓ UI smoke: copy-paste beginner onboarding');
+  console.log('✓ UI smoke: self-bootstrapping Prompt Builder');
   console.log('✓ UI smoke: real iframe readiness state');
   console.log('✓ UI smoke: StagePlayer onboarding and details');
   console.log('✓ UI smoke: chapter navigation and playback');
