@@ -16,7 +16,7 @@ const distDir = resolve('dist');
 const framesDir = join(outDir, 'frames');
 
 if (!['mp4', 'gif', 'png'].includes(format)) throw new Error(`Unsupported format: ${format}`);
-if (!['eclipse', 'water', 'dns', 'binary'].includes(demo)) throw new Error(`Unknown demo: ${demo}`);
+if (!['eclipse', 'water', 'water-v2', 'dns', 'binary'].includes(demo)) throw new Error(`Unknown demo: ${demo}`);
 if (!existsSync(distDir)) throw new Error('dist/ not found. Run `npm run build` first.');
 mkdirSync(outDir, { recursive: true });
 rmSync(framesDir, { recursive: true, force: true });
