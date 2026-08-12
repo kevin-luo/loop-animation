@@ -13,7 +13,7 @@ const distDir = resolve('dist');
 const framesDir = join(outDir, 'frames');
 const boundaryDir = join(outDir, 'boundaries');
 
-if (!['eclipse', 'water', 'dns', 'binary'].includes(demo)) throw new Error(`Unknown demo: ${demo}`);
+if (!['eclipse', 'water', 'water-v2', 'dns', 'binary'].includes(demo)) throw new Error(`Unknown demo: ${demo}`);
 if (!existsSync(distDir)) throw new Error('dist/ not found. Run `npm run build` first.');
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(framesDir, { recursive: true });
