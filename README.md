@@ -30,8 +30,8 @@
 </p>
 
 <p align="center">
-  <sub>This GIF is rendered automatically from the real Three.js scene by Puppeteer + FFmpeg.</sub><br/>
-  <sub>上面的 GIF 由真实 Three.js 场景通过 Puppeteer + FFmpeg 自动生成，不是手工宣传图。</sub>
+  <sub>The preview is rendered automatically from the real deterministic Three.js scene by Puppeteer + FFmpeg.</sub><br/>
+  <sub>上面的预览由真实的确定性 Three.js 场景通过 Puppeteer + FFmpeg 自动生成。</sub>
 </p>
 
 ## Live examples / 在线实例
@@ -46,20 +46,23 @@
 **Gallery:** https://kevin-luo.github.io/loop-animation/
 
 ```text
-                    ┌───────────────────────────────┐
-                    │ Continuous world state S(t)   │
-Concept ───────────▶│ camera(t) · objects(t)        │
-                    │ particles(t) · materials(t)   │
-                    └──────────────┬────────────────┘
-                                   │
-                    ┌──────────────▼────────────────┐
-                    │ Story metadata                │
-                    │ chapters · narration · keys   │
-                    └──────────────┬────────────────┘
-                                   │
-              ┌────────────────────┼────────────────────┐
-              ▼                    ▼                    ▼
-       Interactive HTML        MP4 / GIF              PNG
+                       ONE SOURCE OF TRUTH
+
+                ┌───────────────────────────┐
+                │ Continuous world S(t)     │
+                │ camera / objects / motion │
+                └─────────────┬─────────────┘
+                              │
+                ┌─────────────▼─────────────┐
+                │ Story Manifest            │
+                │ chapters / narration      │
+                │ timing / key ideas        │
+                └─────────────┬─────────────┘
+                              │
+      ┌────────────┬──────────┼──────────┬───────────┐
+      ▼            ▼          ▼          ▼           ▼
+ Interactive     MP4/GIF     PNG       SRT/VTT    narration
+    HTML          video     poster     captions       JSON
 ```
 
 ---
@@ -68,58 +71,79 @@ Concept ───────────▶│ camera(t) · objects(t)        �
 
 ## What is Loop Animation?
 
-Loop Animation is an open-source **Codex Skill + deterministic Three.js runtime + export/QA toolchain** for educational visual explainers.
+Loop Animation is an open-source **Codex Skill + deterministic Three.js runtime + story/export/QA toolchain** for educational explainers.
 
-The central idea is simple:
+The project is built around one rule:
 
 > An explainer should be one world evolving through time, not a stack of animated slides.
 
-In v0.5, chapters are only narration and navigation metadata. The visual world remains a continuous function of absolute time:
+The architecture separates three things that AI-generated animations often mix together:
 
 ```text
-WORLD STATE             STORY METADATA          VIEW
-S(t)                    chapters               controls
+WORLD STATE             STORY METADATA          VIEW / OUTPUT
+S(t)                    chapters               HTML controls
 camera(t)               narration              captions
 objects(t)              key ideas              language switch
-materials(t)            timestamps             details drawer
-particles(t)
+materials(t)            timestamps             MP4 / GIF / PNG
+particles(t)                                    SRT / VTT / narration
 ```
 
-This separation solves two common AI-animation problems:
+Chapters tell the learner **where the explanation is**. They do not reset the camera or replace the visual world.
 
-1. chapter boundaries no longer need to reset the camera or recreate objects;
-2. the same deterministic source can be scrubbed interactively or rendered frame-by-frame to video.
+## Why continuity matters
+
+A common generated-animation pattern looks like this:
+
+```ts
+if (step === 1) camera.position.set(...);
+if (step === 2) camera.position.set(...);
+object.visible = step === 3;
+```
+
+It works as a slideshow, but normal playback jumps at every chapter boundary.
+
+Loop Animation instead treats all important visual state as a function of absolute time:
+
+```ts
+const rain = envelope(time, 8.6, 10.7, 16.8, 18.7);
+rainMaterial.opacity = rain;
+
+cameraCurve.getPointAt(time / DURATION, camera.position);
+```
+
+For a chapter boundary `b`, the target is approximately:
+
+```text
+S(b - ε) ≈ S(b + ε)
+```
+
+That rule is now automatically checked in CI.
 
 ## v0.5 highlights
 
-- continuous world model `S(t)` instead of step-owned visual states;
+- continuous world model `S(t)` instead of step-owned scenes;
 - headless observable `DeterministicTimeline`;
-- smooth `reveal()` and `envelope()` helpers for overlapping transitions;
-- stage-first interactive film UI instead of permanent dashboard sidebars;
+- smooth `reveal()` / `envelope()` transition helpers;
+- stage-first interactive film UI instead of permanent dashboard panels;
+- directly scrubbable Storyline timeline;
 - optional deeper explanation drawer;
-- continuous camera curves for flagship demos;
-- `ResizeObserver`-based WebGL sizing instead of resizing every frame;
-- DPR capped for smoother interactive playback;
+- continuous camera curves in flagship demos;
+- WebGL resizing via `ResizeObserver`, not every frame;
+- interactive DPR capped for smoother playback;
 - `THREE.Points` particle fields in the water-cycle flagship;
-- automated **boundary continuity QA** at `t−1 frame / t / t+1 frame`;
-- strict continuity checks in GitHub Actions;
-- deterministic HTML / MP4 / GIF / PNG output from the same source;
-- Chinese / English switching without mixed-language UI.
+- automated chapter-boundary continuity QA;
+- localized **Story Manifest** shared by UI, subtitles and future TTS;
+- HTML / MP4 / GIF / PNG / SRT / VTT / narration JSON outputs;
+- clean Chinese / English switching without mixed-language screens.
 
-## Requirements
+## Quick start
+
+Requirements:
 
 - Node.js 22+
 - npm
 - FFmpeg for MP4/GIF export
-- Chromium/Puppeteer-compatible environment for export and QA
-
-```bash
-node -v
-npm -v
-ffmpeg -version
-```
-
-## Quick start
+- a Puppeteer-compatible Chromium environment for export and QA
 
 ```bash
 git clone https://github.com/kevin-luo/loop-animation.git
@@ -127,8 +151,6 @@ cd loop-animation
 npm install
 npm run dev
 ```
-
-Open the Vite URL shown in the terminal.
 
 Demo routes:
 
@@ -147,7 +169,7 @@ The repository contains a repo-scoped Codex Skill:
 .agents/skills/loop-animation/SKILL.md
 ```
 
-Inside the repository, invoke:
+Inside the repository:
 
 ```text
 $loop-animation
@@ -164,19 +186,19 @@ Audience: general audience
 Language: English
 Duration: 35 seconds
 Format: 16:9
-Outputs: interactive HTML + MP4 + GIF
+Outputs: interactive HTML + MP4 + GIF + SRT
 
 Requirements:
 - design one continuous world S(t)
 - use 5 chapters only as narration/navigation bookmarks
-- never switch camera/object state with `if (step === ...)`
+- never switch camera/object state with if (step === ...)
 - keep one water drop visually continuous across the explanation
 - let the visual stage dominate the screen
-- use short on-screen narration and deeper details on demand
+- chapter summaries must also work as subtitle/narration cues
 - run strict boundary continuity QA before export
 ```
 
-Another example:
+Technical example:
 
 ```text
 $loop-animation
@@ -186,15 +208,14 @@ Explain a TCP three-way handshake.
 Audience: junior developers
 Language: Chinese
 Duration: 30 seconds
-Outputs: HTML + MP4
+Outputs: HTML + MP4 + SRT
 
 Requirements:
 - Client and Server remain persistent objects
-- packets move continuously along stable routes
 - SYN → SYN-ACK → ACK are chapters, not separate scenes
+- packets move continuously along stable routes
 - narration changes without resetting the network world
-- use a stage-first layout
-- run boundary continuity QA
+- run continuity QA before export
 ```
 
 ## Install the Skill globally
@@ -215,11 +236,11 @@ Overwrite an existing installation:
 npm run skill:install:force
 ```
 
-## Architecture
+## Runtime architecture
 
-### 1. Headless deterministic timeline
+### DeterministicTimeline
 
-`src/runtime/animation.ts` owns time, playback, chapter metadata and subscriptions.
+`src/runtime/animation.ts` owns time and playback, not visual composition.
 
 ```ts
 const controller = new DeterministicTimeline({
@@ -233,90 +254,23 @@ const controller = new DeterministicTimeline({
 window.__LOOP_ANIMATION__ = controller;
 ```
 
-Important contract:
+The contract is:
 
 ```text
-same timestamp = same visual frame
+same timestamp = same conceptual frame
 ```
 
-Whether the user reaches `12.5s` by normal playback, seeking backward, screenshot QA, 30 FPS export or 60 FPS export, the conceptual scene must be reproducible.
+Seeking backward, playing normally, exporting at 30 FPS, or exporting at 60 FPS should all reproduce the same visual state at the same timestamp.
 
-### 2. Chapters are metadata, not visual states
+### `reveal()` and `envelope()`
 
-Avoid:
-
-```ts
-if (step === 1) camera.position.set(...);
-object.visible = step === 2;
-```
-
-Those patterns usually create jumps at boundaries.
-
-Prefer absolute-time functions:
-
-```ts
-const rain = envelope(time, 8.6, 10.7, 16.8, 18.7);
-rainMaterial.opacity = rain;
-
-cameraCurve.getPointAt(time / DURATION, camera.position);
-```
-
-The continuity contract around every chapter boundary `b` is approximately:
-
-```text
-S(b - ε) ≈ S(b + ε)
-```
-
-### 3. Stage-first UI
-
-The current flagship UI lives in:
-
-```text
-src/runtime/stage-player.ts
-src/runtime/stage-player.css
-```
-
-It provides:
-
-- a large uninterrupted visual stage;
-- concise lower-third narration;
-- storyline/chapter navigation integrated at the bottom;
-- previous / play / next controls;
-- optional deeper explanation drawer;
-- language switch;
-- lightweight embed/export modes.
-
-It is intentionally a **view layer**, not a required template. The water-cycle and eclipse demos already compose it differently.
-
-The older `lesson-shell.ts/css` remains only for compatibility with earlier experiments. New flagship explainers should not treat it as the canonical design.
-
-### 4. Resize only when necessary
-
-Use:
-
-```ts
-import { observeRendererViewport } from '../../runtime/canvas-viewport';
-
-const viewport = observeRendererViewport(renderer, camera, stage, {
-  maxPixelRatio: 1.5,
-});
-```
-
-This avoids calling `renderer.setSize()` and `camera.updateProjectionMatrix()` on every animation frame.
-
-## Motion helpers
-
-### `reveal()`
-
-Smoothly turns a process on over an absolute time window:
+Gradually introduce a process:
 
 ```ts
 const groundwater = reveal(time, 17.4, 20.5);
 ```
 
-### `envelope()`
-
-Fade in → hold → fade out without hard visibility cuts:
+Fade in → hold → fade out:
 
 ```ts
 const precipitation = envelope(
@@ -326,15 +280,129 @@ const precipitation = envelope(
 );
 ```
 
-Use these instead of:
+These are preferred over hard `visible` switches at chapter boundaries.
+
+### Resize only when necessary
 
 ```ts
-mesh.visible = currentStep === 2;
+const viewport = observeRendererViewport(renderer, camera, stage, {
+  maxPixelRatio: 1.5,
+});
 ```
+
+`renderer.setSize()` and projection updates only run after an actual viewport change.
+
+## Stage-first interaction
+
+The current flagship starting view lives in:
+
+```text
+src/runtime/stage-player.ts
+src/runtime/stage-player.css
+```
+
+It provides:
+
+- one large uninterrupted visual stage;
+- documentary-style lower-third narration;
+- a directly draggable Storyline;
+- previous / play / next controls;
+- optional deeper explanation on demand;
+- keyboard timeline seeking;
+- language switching;
+- lightweight embed/export modes.
+
+`StagePlayer` is deliberately a **view layer, not a mandatory visual template**.
+
+Water and eclipse already compose it differently. New explainers should reuse interaction behavior while choosing the composition that teaches the topic best.
+
+The older `lesson-shell.ts/css` remains for compatibility with early DNS/Binary experiments only.
+
+## Story Manifest: one narration source
+
+Flagship StagePlayer demos publish:
+
+```ts
+window.__LOOP_STORY__
+```
+
+Example shape:
+
+```json
+{
+  "schemaVersion": 1,
+  "language": "en",
+  "duration": 25,
+  "topic": {
+    "title": "The water cycle",
+    "lead": "..."
+  },
+  "chapters": [
+    {
+      "id": "evaporation",
+      "start": 0,
+      "end": 5,
+      "label": "Evaporation",
+      "title": "Solar energy lifts water",
+      "summary": "Water changes state and enters the atmosphere.",
+      "details": "...",
+      "key": "..."
+    }
+  ]
+}
+```
+
+The same localized story data drives:
+
+```text
+HTML narration
+      ↓
+SRT subtitles
+WebVTT captions
+narration.json
+narration.md
+future TTS / audio composition
+```
+
+This prevents the webpage, subtitles and voiceover from drifting into different scripts.
+
+## Export narration and subtitles
+
+Water cycle:
+
+```bash
+npm run story:water:zh
+npm run story:water:en
+```
+
+Solar eclipse:
+
+```bash
+npm run story:eclipse:zh
+npm run story:eclipse:en
+```
+
+All flagship languages:
+
+```bash
+npm run story:all
+```
+
+Outputs:
+
+```text
+.output/story/<demo>/
+├── <demo>.<lang>.narration.json
+├── <demo>.<lang>.narration.md
+├── <demo>.<lang>.srt
+└── <demo>.<lang>.vtt
+```
+
+`summary` is intentionally concise and speech-friendly because it becomes the default subtitle/narration cue. `details` remains available for deeper explanations.
 
 ## Boundary continuity QA
 
-Normal visual QA:
+Normal QA:
 
 ```bash
 npm run qa:water
@@ -349,7 +417,7 @@ npm run qa:eclipse:strict
 npm run qa:continuity
 ```
 
-For every chapter boundary, QA captures the **canvas only** at:
+At every chapter boundary, QA captures the **canvas only** at:
 
 ```text
 t - 1 frame
@@ -357,9 +425,9 @@ t
 t + 1 frame
 ```
 
-It compares normalized pixel differences and flags suspicious asymmetric changes.
+It compares normalized pixel change and flags suspicious asymmetric jumps.
 
-Output:
+Outputs:
 
 ```text
 .output/qa/<demo>/
@@ -370,23 +438,23 @@ Output:
 └── boundaries/
 ```
 
-The strict workflow is also executed by GitHub Actions.
+GitHub Actions runs the strict checks for both flagship demos and also verifies localized Story Manifest exports.
 
-Boundary QA is a heuristic, not a proof of physical correctness. Review warnings visually and still inspect the contact sheet for composition, clipping and misleading geometry.
+The pixel-diff check is a heuristic, not a proof of correctness. Always review the visual contact sheet for clipping, hierarchy, misleading geometry and narration/motion synchronization.
 
 ## Performance rules
 
 Flagship explainers should:
 
-- resize WebGL only after an actual viewport change;
-- cap interactive DPR unless maximum resolution is specifically needed;
-- prefer `THREE.Points` / `InstancedMesh` over many separate particle meshes;
+- resize WebGL only after an actual size change;
+- cap interactive DPR unless maximum resolution is specifically required;
+- prefer `THREE.Points` / `InstancedMesh` for repeated particles;
 - avoid real-time shadows unless they teach something;
-- reuse vectors in hot render loops;
+- reuse vectors in hot loops;
 - avoid large permanent backdrop-filter layers;
-- update chapter copy only when the chapter changes;
+- update chapter text only when the chapter changes;
 - seed procedural randomness;
-- derive export-critical state only from absolute time.
+- derive export-critical state from absolute time.
 
 ## Export HTML
 
@@ -401,6 +469,8 @@ dist/
 ```
 
 ## Export MP4
+
+Full water-cycle video:
 
 ```bash
 npm run export:water:mp4
@@ -418,20 +488,22 @@ node scripts/export.mjs \
   --fps 30
 ```
 
-## Export GIF
+## Export a clip
+
+The deterministic exporter supports `--start` and `--duration`:
 
 ```bash
-npm run export:water:gif
+node scripts/export.mjs \
+  --format gif \
+  --demo eclipse \
+  --start 8 \
+  --duration 10 \
+  --width 960 \
+  --height 540 \
+  --fps 10
 ```
 
-Or:
-
-```bash
-npm run build
-node scripts/export.mjs --format gif --demo eclipse --width 960 --height 540 --fps 15
-```
-
-Use GIF for README/social preview. Prefer MP4 for final video quality.
+This is also how README preview GIFs are generated efficiently.
 
 ## Export PNG
 
@@ -445,19 +517,19 @@ node scripts/export.mjs \
   --height 1080
 ```
 
-## Flagship example: Water Cycle
+## Flagship: Water Cycle
 
-The v0.5 water-cycle demo is the reference implementation for new work.
+The water-cycle demo is the current reference implementation for continuous-flow explainers.
 
 It uses:
 
-- one global continuous camera curve;
-- overlapping evaporation / transport / rain / runoff / groundwater envelopes;
+- one global Catmull-Rom camera path;
+- overlapping evaporation / transport / precipitation / runoff / groundwater envelopes;
 - `THREE.Points` particle fields;
-- one highlighted water drop that persists across the journey;
+- one highlighted water drop that visually persists across the journey;
 - a secondary branch into groundwater;
-- stage-first narration;
-- strict chapter-boundary QA.
+- Stage-first narration;
+- strict continuity QA.
 
 ```text
 Ocean
@@ -478,11 +550,11 @@ Source:
 src/examples/water/main.ts
 ```
 
-## Flagship example: Solar Eclipse
+## Flagship: Solar Eclipse
 
-The eclipse demo uses a different composition to prove that StagePlayer is not a one-template UI system.
+The eclipse demo uses the same runtime contract with a different composition.
 
-It keeps one continuous orbital world and progressively emphasizes:
+It keeps one continuous orbital world while progressively emphasizing:
 
 ```text
 Sun / Moon / Earth
@@ -508,10 +580,9 @@ src/examples/eclipse/studio.ts
 
 ```text
 loop-animation/
-├── .agents/
-│   └── skills/loop-animation/
-│       ├── SKILL.md
-│       └── agents/openai.yaml
+├── .agents/skills/loop-animation/
+│   ├── SKILL.md
+│   └── agents/openai.yaml
 ├── .github/workflows/
 │   ├── ci.yml
 │   ├── continuity-qa.yml
@@ -522,6 +593,7 @@ loop-animation/
 │   └── eclipse.gif
 ├── scripts/
 │   ├── export.mjs
+│   ├── export-story.mjs
 │   ├── qa.mjs
 │   └── install-skill.mjs
 ├── src/
@@ -531,6 +603,7 @@ loop-animation/
 │   │   ├── canvas-viewport.ts
 │   │   ├── stage-player.ts
 │   │   ├── stage-player.css
+│   │   ├── story.ts
 │   │   ├── lesson-shell.ts       # legacy compatibility
 │   │   └── lesson-shell.css      # legacy compatibility
 │   └── examples/
@@ -543,22 +616,24 @@ loop-animation/
 
 ## Contributing
 
-The most useful contributions are:
-
-- new continuous visual grammars;
-- polished educational examples;
-- better boundary/visual QA;
-- rendering/export performance improvements;
-- reusable deterministic motion primitives;
-- accessibility and interaction improvements.
-
-Before opening a PR:
+Before opening a PR that changes a flagship animation or shared runtime:
 
 ```bash
 npm run typecheck
 npm run build
 npm run qa:continuity
+npm run story:all
 ```
+
+Useful contribution areas:
+
+- new continuous visual grammars;
+- polished educational examples;
+- better boundary/visual QA;
+- deterministic motion primitives;
+- export/runtime performance;
+- story/audio pipelines;
+- accessibility and interaction.
 
 ---
 
@@ -566,40 +641,72 @@ npm run qa:continuity
 
 ## Loop Animation 是什么？
 
-Loop Animation 是一个开源的 **Codex Skill + Three.js 确定性动画运行时 + 导出 / QA 工具链**。
+Loop Animation 是一个开源的 **Codex Skill + Three.js 确定性动画运行时 + Story / 导出 / QA 工具链**。
 
-v0.5 的核心理解只有一句话：
+v0.5 的核心理解很简单：
 
 > **一个科普动画应该是一整个世界在持续变化，而不是几张“会动的 PPT”不断切换。**
 
-现在我们把系统拆成三层：
+整个项目现在拆成三层：
 
 ```text
-视觉世界 S(t)           故事元数据              交互视图
-camera(t)              chapters              controls
-objects(t)             narration             captions
-particles(t)           key ideas             language switch
-materials(t)           timestamps            details drawer
+视觉世界 S(t)           故事元数据              交互 / 输出
+camera(t)              chapters              HTML 控制
+objects(t)             narration             字幕
+particles(t)           key ideas             中英文切换
+materials(t)           timestamps            MP4 / GIF / PNG
+                                             SRT / VTT / narration
 ```
 
-其中最重要的是：
+章节只负责告诉用户“现在讲到哪里”。
 
-**章节只负责“讲到哪里”，不能决定“画面突然变成什么”。**
+**章节不能决定相机突然去哪里，也不能决定物体突然出现或消失。**
 
-## v0.5 主要变化
+## 为什么要做连续世界
 
-- Step / Chapter 从视觉状态控制器降级为讲解书签；
-- 相机、物体、粒子、材质全部从全局绝对时间 `time` 推导；
-- 新增 `reveal()` / `envelope()`，替代硬切的 `visible = true/false`；
-- 新增 Stage-first 交互方式，画面占主体，解说缩成纪录片式下三分之一；
-- 深入解释按“为什么？”再展开；
-- 水循环改用连续相机曲线与 `THREE.Points` 粒子系统；
-- WebGL 只在尺寸真正变化时 resize；
-- 默认限制 DPR，改善普通电脑和手机上的流畅度；
-- 新增章节边界连续性 QA；
-- GitHub Actions 会自动跑严格 continuity gate；
-- 水循环和日食成为当前两个旗舰实例；
-- 中英文仍是完整切换，不在同一个画面混排。
+之前最容易生成这样的代码：
+
+```ts
+if (step === 1) camera.position.set(...);
+if (step === 2) camera.position.set(...);
+mesh.visible = step === 3;
+```
+
+单独点每一步看似没有问题，正常播放一跨章节就会卡一下、跳一下。
+
+现在我们要求所有重要画面状态直接从绝对时间推导：
+
+```ts
+const rain = envelope(time, 8.6, 10.7, 16.8, 18.7);
+rainMaterial.opacity = rain;
+
+cameraCurve.getPointAt(time / DURATION, camera.position);
+```
+
+所以章节边界 `b` 应尽量满足：
+
+```text
+S(b - ε) ≈ S(b + ε)
+```
+
+并且已经有自动化测试专门检查这件事。
+
+## v0.5 主要能力
+
+- 全局连续世界模型 `S(t)`；
+- Headless `DeterministicTimeline`；
+- `reveal()` / `envelope()` 平滑过程函数；
+- Stage-first 交互，不再把动画包在厚重三栏 Dashboard 里；
+- Storyline 可以直接拖动 Seek；
+- “为什么？”按需展开详细解释；
+- 水循环和日食使用连续相机曲线；
+- WebGL 只有尺寸变化时才 resize；
+- 互动 DPR 默认限高，提高普通电脑和手机流畅度；
+- 水循环大量粒子使用 `THREE.Points`；
+- 每个章节边界自动做连续性 QA；
+- Story Manifest 同时服务页面解释、字幕和未来 TTS；
+- 支持 HTML / MP4 / GIF / PNG / SRT / VTT / narration JSON；
+- 中英文是真正切换，不在一个页面混排。
 
 ## 快速开始
 
@@ -615,17 +722,19 @@ npm run dev
 ```text
 ?demo=water
 ?demo=eclipse
+?demo=dns
+?demo=binary
 ```
 
-首页 Gallery：
+在线 Gallery：
 
 ```text
 https://kevin-luo.github.io/loop-animation/
 ```
 
-## 在 Codex 中使用
+## 给 Codex 使用
 
-仓库内已经包含：
+仓库已经包含：
 
 ```text
 .agents/skills/loop-animation/SKILL.md
@@ -648,15 +757,15 @@ $loop-animation
 语言：中文
 时长：35 秒
 比例：16:9
-输出：交互 HTML + MP4 + GIF
+输出：交互 HTML + MP4 + GIF + SRT
 
 要求：
 - 先设计一个连续世界 S(t)
-- 5 个章节只作为解说和导航书签
+- 5 个章节只作为讲解 / 导航书签
 - 禁止用 if (step === ...) 切换相机或物体状态
 - 让同一滴水贯穿主要过程
 - 画面占主体，文字只解释关键变化
-- 详细原理按需展开
+- 章节 summary 同时要适合作为字幕 / 旁白
 - 导出前运行 strict boundary continuity QA
 ```
 
@@ -670,15 +779,14 @@ $loop-animation
 受众：初级开发者
 语言：中文
 时长：30 秒
-输出：HTML + MP4
+输出：HTML + MP4 + SRT
 
 要求：
 - Client / Server 始终是同一组对象
-- SYN / SYN-ACK / ACK 沿稳定路径连续移动
-- 三个阶段是章节，不是三张不同场景
-- 章节切换时不能重置镜头
-- 使用 Stage-first 交互
-- 运行连续性 QA
+- SYN / SYN-ACK / ACK 是章节，不是三张独立场景
+- 数据包沿稳定路径连续移动
+- 章节变化不能重置镜头
+- 导出前运行 continuity QA
 ```
 
 ## 全局安装 Skill
@@ -693,88 +801,47 @@ npm run skill:install
 $HOME/.agents/skills/loop-animation
 ```
 
-强制覆盖：
+覆盖旧版本：
 
 ```bash
 npm run skill:install:force
 ```
 
-## 最重要的开发规则：世界必须连续
+## 确定性时间轴
 
-错误方式：
-
-```ts
-if (step === 1) {
-  camera.position.set(1, 2, 10);
-}
-
-if (step === 2) {
-  camera.position.set(8, 4, 6);
-}
-```
-
-用户正常播放跨过边界时，镜头一定会“咔”一下。
-
-同样不要这样：
-
-```ts
-rain.visible = step === 2;
-```
-
-推荐方式：
-
-```ts
-const rain = envelope(time, 8.6, 10.7, 16.8, 18.7);
-rainMaterial.opacity = rain;
-
-cameraCurve.getPointAt(time / DURATION, camera.position);
-```
-
-所以章节边界 `b` 应尽量满足：
-
-```text
-S(b - ε) ≈ S(b + ε)
-```
-
-至少要考虑：
-
-- position
-- rotation
-- scale
-- opacity
-- camera position
-- camera target
-- 重要材质状态
-
-## Headless Timeline
-
-核心时间控制器：
+核心：
 
 ```text
 src/runtime/animation.ts
 ```
 
-它负责：
+它只负责：
 
 - 当前时间；
 - 播放 / 暂停；
 - Seek；
 - 章节元数据；
-- 当前章节索引；
+- 当前章节；
 - UI 订阅；
-- QA 时间点。
+- QA 边界时间点。
 
-它**不负责**决定某一步应该长什么样。
-
-这意味着视觉层只需要实现：
+视觉层实现：
 
 ```ts
 function renderWorldAt(time: number) {
-  // 所有画面状态都由 absolute time 推导
+  // 所有关键画面状态从 absolute time 推导
 }
 ```
 
-## `reveal()` 和 `envelope()`
+目标是：
+
+```text
+同一个 timestamp = 同一个概念画面
+```
+
+无论正常播放、往回拖、30 FPS 导出还是 60 FPS 导出，都应该成立。
+
+## `reveal()` / `envelope()`
 
 渐进出现：
 
@@ -792,82 +859,101 @@ const precipitation = envelope(
 );
 ```
 
-这类函数可以让前后两个知识过程有自然重叠，不需要等到章节边界才“开关”。
+这让两个知识过程可以自然重叠，不需要到章节边界才开关。
 
-## Stage-first UI
+## Stage-first 交互
 
-现在旗舰实例默认使用：
+旗舰实例使用：
 
 ```text
 src/runtime/stage-player.ts
 src/runtime/stage-player.css
 ```
 
-设计原则：
+现在提供：
 
-```text
-画面约 70%+
-文字 / 控制约 30%-
-```
-
-它提供：
-
-- 大面积完整动画舞台；
-- 纪录片式简短解说；
-- 底部 Storyline；
+- 大面积动画舞台；
+- 纪录片式下三分之一解说；
+- 可直接拖动的 Storyline；
 - 上一章 / 播放 / 下一章；
+- 键盘 Seek；
 - “为什么？”详细解释；
 - 中英文切换；
-- embed / export 模式。
+- Embed / Export 模式。
 
-但 StagePlayer **只是视图层起点，不是所有动画必须长成同一个模板**。
+但它只是**交互视图层**，不是一个要求所有作品长得一样的 UI 模板。
 
-例如：
+水循环解说偏左，日食桌面端解说偏右；未来人体、网络、历史和数学都可以根据内容重新组织构图。
 
-- 水循环的解说偏左；
-- 日食的解说在桌面端偏右；
-- 未来人体、网络、数学都可以根据内容重新组织视觉布局。
+旧的 `lesson-shell.ts/css` 只留给 DNS / Binary 等早期实验兼容。
 
-旧的 `lesson-shell.ts/css` 只保留给 DNS / Binary 等早期实验兼容，新旗舰实例不要继续以它为设计基准。
+## Story Manifest：只维护一份解说
 
-## 性能优化规则
-
-### 不要每帧 resize
-
-使用：
+StagePlayer 旗舰实例会自动发布：
 
 ```ts
-observeRendererViewport(renderer, camera, stage, {
-  maxPixelRatio: 1.5,
-});
+window.__LOOP_STORY__
 ```
 
-只有实际尺寸改变时才：
+里面包含：
 
 ```text
-renderer.setSize()
-camera.updateProjectionMatrix()
+语言
+主题标题
+总时长
+章节 id
+章节 start / end
+章节标题
+summary
+详细解释 details
+关键结论 key
 ```
 
-### 粒子不要一粒一个 Mesh
-
-大量粒子优先：
+同一份数据直接用于：
 
 ```text
-THREE.Points
-InstancedMesh
+网页解说
+  ↓
+SRT 字幕
+VTT 字幕
+narration.json
+narration.md
+未来 TTS / 音频合成
 ```
 
-当前水循环的蒸发、水汽、降雨、径流和地下水全部已经改成 `THREE.Points`。
+这样网页里讲的、视频字幕写的、以后 TTS 读的，不会变成三套不同脚本。
 
-### 其他规则
+### 导出水循环解说
 
-- 普通互动模式不要无脑 DPR=2；
-- 没教学价值的实时阴影直接关闭；
-- 热循环里复用临时 Vector；
-- DOM 文案只在章节变化时更新；
-- 随机过程固定 seed；
-- 视频关键状态不能依赖 `deltaTime` 累积。
+```bash
+npm run story:water:zh
+npm run story:water:en
+```
+
+### 导出日食解说
+
+```bash
+npm run story:eclipse:zh
+npm run story:eclipse:en
+```
+
+### 全部导出
+
+```bash
+npm run story:all
+```
+
+输出：
+
+```text
+.output/story/<demo>/
+├── <demo>.<lang>.narration.json
+├── <demo>.<lang>.narration.md
+├── <demo>.<lang>.srt
+└── <demo>.<lang>.vtt
+```
+
+章节 `summary` 会作为默认字幕 / 旁白 cue，所以写的时候必须简洁、自然、适合读出来；`details` 用来承载更深入的解释。
 
 ## 连续性 QA
 
@@ -885,7 +971,7 @@ npm run qa:eclipse
 npm run qa:eclipse:strict
 ```
 
-一次检查两个旗舰实例：
+两个旗舰实例一起检查：
 
 ```bash
 npm run qa:continuity
@@ -910,16 +996,53 @@ t + 1 frame
 └── boundaries/
 ```
 
-`report.json` 会记录边界前后画面的归一化像素差异。如果某一侧突然比另一侧大很多，就会标为 warning。
+GitHub Actions 会自动跑两个旗舰实例的严格连续性检查，并验证四套中英文 Story 导出。
 
-注意：这个检查只能发现“疑似视觉跳变”，不能证明动画一定科学正确。所以还要人工检查：
+像素差检查只能发现“疑似跳变”，并不能证明动画一定科学正确。仍然要检查：
 
 - 遮挡；
-- 字太小；
 - 构图；
-- 信息焦点；
-- 物理 / 几何是否误导；
-- 解说和动画是否真正同步。
+- 文字大小；
+- 焦点是否明确；
+- 物理 / 几何有没有误导；
+- 解说和动画是否同步。
+
+## 性能规则
+
+### WebGL 不要每帧 resize
+
+```ts
+observeRendererViewport(renderer, camera, stage, {
+  maxPixelRatio: 1.5,
+});
+```
+
+只有尺寸真的变化时才调用：
+
+```text
+renderer.setSize()
+camera.updateProjectionMatrix()
+```
+
+### 大量粒子不要一粒一个 Mesh
+
+优先：
+
+```text
+THREE.Points
+InstancedMesh
+```
+
+当前水循环的蒸发、水汽输送、降雨、径流和地下水已经使用 `THREE.Points`。
+
+另外：
+
+- 普通互动模式不无脑 DPR=2；
+- 没教学价值的实时阴影关闭；
+- 热循环复用 Vector；
+- DOM 章节文案只在章节改变时重写；
+- 随机过程固定 seed；
+- 视频关键状态不依赖 `deltaTime` 累积。
 
 ## 导出 HTML
 
@@ -942,7 +1065,6 @@ npm run export:water:mp4
 自定义：
 
 ```bash
-npm run build
 node scripts/export.mjs \
   --format mp4 \
   --demo water \
@@ -951,24 +1073,33 @@ node scripts/export.mjs \
   --fps 30
 ```
 
-## 导出 GIF
+## 导出片段
 
-```bash
-npm run export:water:gif
+Exporter 支持：
+
+```text
+--start
+--duration
 ```
 
-或者：
+例如：
 
 ```bash
-node scripts/export.mjs --format gif --demo eclipse --width 960 --height 540 --fps 15
+node scripts/export.mjs \
+  --format gif \
+  --demo eclipse \
+  --start 8 \
+  --duration 10 \
+  --width 960 \
+  --height 540 \
+  --fps 10
 ```
 
-GIF 更适合 README / 社交媒体预览；正式视频优先 MP4。
+README 的真实 GIF 也使用这种方式自动生成，减少 CI 时间和文件体积。
 
 ## 导出 PNG
 
 ```bash
-npm run build
 node scripts/export.mjs \
   --format png \
   --demo water \
@@ -979,16 +1110,16 @@ node scripts/export.mjs \
 
 ## 旗舰实例：水循环
 
-水循环已经成为当前新架构的标准参考：
+现在它是“连续 Flow 类动画”的参考：
 
 - 一条全局连续相机曲线；
-- 蒸发 / 输送 / 降水 / 径流 / 地下水过程互相重叠；
-- 所有大批量粒子使用 `THREE.Points`；
-- 一颗高亮“主水滴”贯穿主要路径；
-- 地下水作为第二条平滑分支出现；
+- 蒸发 / 输送 / 降水 / 径流 / 地下水互相平滑重叠；
+- 大批量粒子使用 `THREE.Points`；
+- 一颗高亮水滴贯穿主要路径；
+- 地下水作为第二条连续分支出现；
 - 没有 `visible = step === n`；
-- 没有章节边界切相机；
-- 严格连续性 QA 已接入 Actions。
+- 没有章节边界换一套相机；
+- 严格连续性 QA 接入 Actions。
 
 源码：
 
@@ -998,16 +1129,14 @@ src/examples/water/main.ts
 
 ## 旗舰实例：日食
 
-日食没有照搬水循环的排版。
-
-它保留同一套连续时间 / 交互协议，但采用：
+日食共享同一套 Runtime 协议，但视觉构图没有照搬水循环：
 
 - 中央天体世界；
-- 桌面端右侧纪录片式解说；
-- 更少的空间标注；
-- 一条连续月球轨道；
+- 桌面端偏右的纪录片式解说；
+- 少量空间标注；
+- 一条连续的月球运动；
 - 连续相机和观察目标；
-- 逐渐强调轨道倾角、交点、本影、半影和观察位置。
+- 逐渐强调轨道倾角、交点、影区和观察位置。
 
 源码：
 
@@ -1032,6 +1161,7 @@ loop-animation/
 │   └── eclipse.gif
 ├── scripts/
 │   ├── export.mjs
+│   ├── export-story.mjs
 │   ├── qa.mjs
 │   └── install-skill.mjs
 ├── src/
@@ -1041,6 +1171,7 @@ loop-animation/
 │   │   ├── canvas-viewport.ts
 │   │   ├── stage-player.ts
 │   │   ├── stage-player.css
+│   │   ├── story.ts
 │   │   ├── lesson-shell.ts      # 旧实例兼容
 │   │   └── lesson-shell.css     # 旧实例兼容
 │   └── examples/
@@ -1051,24 +1182,26 @@ loop-animation/
 └── package.json
 ```
 
-## 贡献方向
+## 贡献前检查
 
-现在最欢迎的 PR：
-
-- 新的连续视觉语法；
-- 真正有教学价值的旗舰示例；
-- Boundary / Visual QA；
-- 渲染和导出性能优化；
-- 可复用确定性 motion primitives；
-- 无障碍和交互体验。
-
-提交前建议运行：
+如果修改旗舰实例或 Runtime：
 
 ```bash
 npm run typecheck
 npm run build
 npm run qa:continuity
+npm run story:all
 ```
+
+欢迎的贡献方向：
+
+- 新连续视觉语法；
+- 高质量科普实例；
+- Boundary / Visual QA；
+- 确定性 Motion primitives；
+- 性能和导出优化；
+- 字幕 / 音频流水线；
+- 无障碍和交互体验。
 
 ## License
 
