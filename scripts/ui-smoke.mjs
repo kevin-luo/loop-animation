@@ -24,22 +24,6 @@ try {
   await page.goto(`${baseUrl}?lang=zh`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#builder-topic');
 
-  const heroPrompt = await page.$eval('#hero-prompt', (element) => element.textContent ?? '');
-  assertIncludes(heroPrompt, 'https://github.com/kevin-luo/loop-animation', 'Beginner bootstrap repository');
-  assertIncludes(heroPrompt, '不要让我自己执行 git、npm', 'Beginner no-terminal instruction');
-
-  const howToText = await page.$eval('#howto', (element) => element.textContent ?? '');
-  assertIncludes(howToText, '复制、粘贴、看结果', 'Beginner three-step onboarding');
-  if (howToText.includes('git clone') || howToText.includes('npm install')) {
-    throw new Error('Beginner onboarding leaked developer terminal commands.');
-  }
-
-  const mainCopyButton = await page.$('#hero-copy-main');
-  if (!mainCopyButton) throw new Error('Primary beginner copy button is missing.');
-
-  const codexHref = await page.$eval('a[href^="https://chatgpt.com/codex"]', (element) => element.getAttribute('href') ?? '');
-  if (!codexHref) throw new Error('Open Codex action is missing.');
-
   await page.$eval('#builder-topic', (element) => {
     element.value = '为什么火山会喷发？';
     element.dispatchEvent(new Event('input', { bubbles: true }));
@@ -54,13 +38,31 @@ try {
   assertIncludes(prompt, '45 秒', 'Prompt Builder duration');
   assertIncludes(prompt, '9:16', 'Prompt Builder aspect ratio');
   assertIncludes(prompt, 'strict continuity QA', 'Prompt Builder QA instruction');
-  assertIncludes(prompt, 'https://github.com/kevin-luo/loop-animation', 'Prompt Builder bootstrap repository');
-  assertIncludes(prompt, '不要让我自己执行 git、npm', 'Prompt Builder no-terminal instruction');
 
   const howToLink = await page.$eval('a[href="#howto"]', (element) => element.textContent?.trim() ?? '');
   if (!howToLink) throw new Error('Gallery usage navigation is missing.');
 
-  await page.waitForSelector('.demo-card--featured .demo-frame-wrap.is-loaded', { timeout: 15000 });
+  const beginnerCopy = await page.$eval('#howto', (element) => element.textContent ?? '');
+  if (/git clone|npm install/.test(beginnerCopy)) throw new Error('Beginner onboarding regressed to terminal-first instructions.');
+
+  // Performance contract: the Gallery must not boot demo applications in iframes.
+  const iframeCount = await page.$$eval('.demo-frame-wrap iframe', (frames) => frames.length);
+  if (iframeCount !== 0) throw new Error(`Gallery booted ${iframeCount} embedded demo iframe(s); expected zero.`);
+
+  await page.waitForFunction(() => {
+    const image = document.querySelector('.demo-card--featured .demo-poster');
+    return image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0;
+  }, { timeout: 15000 });
+
+  const previewSourceBeforeClick = await page.$eval('.demo-card--featured .demo-preview-video', (video) => video.getAttribute('src'));
+  if (previewSourceBeforeClick) throw new Error('Gallery eagerly loaded the flagship MP4 preview.');
+
+  await page.click('.demo-card--featured .preview-play');
+  await page.waitForFunction(() => {
+    const video = document.querySelector('.demo-card--featured .demo-preview-video');
+    return video instanceof HTMLVideoElement && video.currentSrc.includes('water-v2-preview.mp4') && video.readyState >= 2;
+  }, { timeout: 15000 });
+  await page.click('.demo-card--featured .preview-play');
 
   await page.goto(`${baseUrl}?demo=water-v2&lang=zh`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => window.__LOOP_ANIMATION__?.ready === true, { timeout: 15000 });
@@ -87,9 +89,9 @@ try {
   if (!playing) throw new Error('Play control did not start playback.');
   await page.click('#story-play');
 
-  console.log('✓ UI smoke: copy-paste beginner onboarding');
-  console.log('✓ UI smoke: self-bootstrapping Prompt Builder');
-  console.log('✓ UI smoke: real iframe readiness state');
+  console.log('✓ UI smoke: zero-command beginner onboarding');
+  console.log('✓ UI smoke: Gallery has zero embedded WebGL apps');
+  console.log('✓ UI smoke: lightweight poster + opt-in MP4 preview');
   console.log('✓ UI smoke: StagePlayer onboarding and details');
   console.log('✓ UI smoke: chapter navigation and playback');
 } finally {
@@ -105,7 +107,7 @@ function createStaticServer(root) {
   const mime = {
     '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
     '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
-    '.svg': 'image/svg+xml', '.webp': 'image/webp', '.gif': 'image/gif',
+    '.svg': 'image/svg+xml', '.webp': 'image/webp', '.gif': 'image/gif', '.mp4': 'video/mp4',
   };
   return createServer((req, res) => {
     const rawPath = decodeURIComponent((req.url ?? '/').split('?')[0]);
