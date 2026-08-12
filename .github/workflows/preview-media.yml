@@ -41,27 +41,27 @@ jobs:
           rm -rf .preview
           mkdir -p .preview docs/media
 
-          # README animated previews. These remain intentionally short.
+          # README animated previews.
           node scripts/export.mjs --format gif --demo eclipse --start 8 --duration 9 --width 960 --height 540 --fps 10 --output .preview/eclipse-gif
           node scripts/export.mjs --format gif --demo water-v2 --start 7 --duration 11 --width 960 --height 540 --fps 10 --output .preview/water-v2-gif
 
-          # Gallery posters: load instantly, no WebGL boot on the landing page.
+          # Real-frame posters. Export PNG first, then compress to WebP for the Gallery.
           node scripts/export.mjs --format png --demo water-v2 --time 13 --width 960 --height 540 --output .preview/water-v2-poster
           node scripts/export.mjs --format png --demo eclipse --time 14 --width 960 --height 540 --output .preview/eclipse-poster
           node scripts/export.mjs --format png --demo dns --time 8 --width 960 --height 540 --output .preview/dns-poster
           node scripts/export.mjs --format png --demo binary --time 8 --width 960 --height 540 --output .preview/binary-poster
 
-          # Optional motion previews for flagship cards. They are never preloaded by the Gallery;
-          # the browser requests them only after the user presses “Play preview”.
+          ffmpeg -y -i .preview/water-v2-poster/water-v2-poster.png -c:v libwebp -quality 78 docs/media/water-v2-poster.webp
+          ffmpeg -y -i .preview/eclipse-poster/eclipse-poster.png -c:v libwebp -quality 78 docs/media/eclipse-poster.webp
+          ffmpeg -y -i .preview/dns-poster/dns-poster.png -c:v libwebp -quality 78 docs/media/dns-poster.webp
+          ffmpeg -y -i .preview/binary-poster/binary-poster.png -c:v libwebp -quality 78 docs/media/binary-poster.webp
+
+          # Motion previews are opt-in: the Gallery requests these only after a click.
           node scripts/export.mjs --format mp4 --demo water-v2 --start 7 --duration 8 --width 960 --height 540 --fps 24 --output .preview/water-v2-video
           node scripts/export.mjs --format mp4 --demo eclipse --start 8 --duration 8 --width 960 --height 540 --fps 24 --output .preview/eclipse-video
 
           cp .preview/eclipse-gif/eclipse.gif docs/media/eclipse.gif
           cp .preview/water-v2-gif/water-v2.gif docs/media/water-v2.gif
-          cp .preview/water-v2-poster/water-v2-poster.png docs/media/water-v2-poster.png
-          cp .preview/eclipse-poster/eclipse-poster.png docs/media/eclipse-poster.png
-          cp .preview/dns-poster/dns-poster.png docs/media/dns-poster.png
-          cp .preview/binary-poster/binary-poster.png docs/media/binary-poster.png
           cp .preview/water-v2-video/water-v2.mp4 docs/media/water-v2-preview.mp4
           cp .preview/eclipse-video/eclipse.mp4 docs/media/eclipse-preview.mp4
       - name: Commit refreshed previews
