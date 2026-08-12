@@ -11,6 +11,7 @@ if (exporting) document.documentElement.dataset.export = '1';
 const demoLoaders: Record<string, () => Promise<unknown>> = {
   eclipse: () => import('./examples/eclipse/studio'),
   water: () => import('./examples/water/main'),
+  'water-v2': () => import('./examples/water-v2/main'),
   dns: () => import('./examples/dns/main'),
   binary: () => import('./examples/binary/main'),
 };
