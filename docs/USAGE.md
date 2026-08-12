@@ -1,343 +1,307 @@
 # Loop Animation — Usage Guide / 使用说明
 
-This guide is for people who want to **use** Loop Animation, not learn its internals first.
+这份文档优先面向**不会 Git、npm、Three.js 的普通用户**。
 
-这份文档面向“想直接做一个动画解释”的用户，不要求先理解 Three.js、Shader 或确定性时间轴。
+最短路径只有一句话：
+
+> **复制提示词 → 打开 Codex → 粘贴 → 看结果。**
 
 ---
 
-## 中文：60 秒开始
+## 中文：小白最简单用法
 
-### 1. 克隆仓库
+### 第 1 步：复制提示词
 
-```bash
-git clone https://github.com/kevin-luo/loop-animation.git
-cd loop-animation
-npm install
-```
+你不需要先下载仓库，也不需要打开终端。
 
-然后用 Codex 打开这个仓库。
-
-仓库已经包含：
+直接复制：
 
 ```text
-.agents/skills/loop-animation/SKILL.md
-```
+请使用 Loop Animation 开源项目帮我制作一个交互式科普动画：
+https://github.com/kevin-luo/loop-animation
 
-所以不需要把一大段规则手动粘给 Codex。
+如果当前工作区还没有这个项目，请在可以访问 GitHub 时自行获取它，并读取 .agents/skills/loop-animation/SKILL.md 后继续执行。
 
-### 2. 最短用法
+不要停在“请先安装/克隆”的说明，也不要让我自己执行 git、npm 或终端命令；项目准备、依赖安装、运行、QA 和导出都请你处理。
 
-直接输入：
-
-```text
-$loop-animation
-
-解释为什么飞机能飞起来。
-```
-
-如果你没有指定受众、时长、比例和输出格式，Skill 会采用合理默认值继续完成，不需要每一步都问你。
-
-默认大致是：
-
-```text
-受众：普通用户
-语言：跟随你的语言
-时长：30 秒
-比例：16:9
-章节：5–7 个
-交互：播放 / 暂停 / 拖动时间轴 / 章节跳转 / 深入解释
-主要输出：交互 HTML
-QA：严格连续性检查
-```
-
-### 3. 推荐提示词
-
-需要更稳定的结果时，直接使用这份：
-
-```text
-$loop-animation
-
-请制作一个关于「为什么飞机能飞起来？」的交互式科普动画。
-
+主题：为什么飞机能飞起来？
 受众：普通用户
 语言：中文
 时长：30 秒
 比例：16:9
-输出：HTML + MP4 + SRT/VTT
+输出：交互 HTML + MP4 + SRT
 
-执行要求：
-1. 先用一句话定义学习目标，再拆成 5–7 个章节。
-2. 先决定最适合的视觉语法与美术方案；复杂自然场景允许 shader + 3D + raster/img2 混合，不要为了方便全部画成 SVG。
-3. 全程使用一个连续世界 S(t)。章节只负责讲解和导航，禁止按 step 硬切相机、物体或整套场景。
-4. 关键对象保持连续；镜头、粒子、材质和可见性都由绝对 time 推导，同一 timestamp 必须得到同一画面。
-5. 画面占主导，文字只解释当前机制；说明、步骤和控件不要遮挡主体。
-6. 提供播放/暂停、可拖时间轴、章节跳转、深入解释和必要的语言切换。
-7. 完成后执行 typecheck、build、strict continuity QA，并检查桌面端与移动端构图。
-8. 导出请求格式，并在完成时列出预览入口、生成文件位置和使用命令。
+请直接采用合理默认值完成。
 
-如果我的描述缺少非关键参数，请直接采用合理默认值继续，不要反复提问。
+完成时不要只给技术日志，请直接告诉我：
+1. 预览在哪里；
+2. 生成了哪些文件；
+3. 我下一步应该点什么或打开什么。
+
+如果当前环境确实无法访问 GitHub，只告诉我需要在界面上完成的一个最简单操作，不要给我一串终端命令。
 ```
 
-在线 Gallery 里也有一个 **Prompt Builder**，填主题、受众、时长、比例和输出格式即可自动生成这类提示词。
+### 第 2 步：打开 Codex，粘贴
 
-### 4. 怎么看结果
+打开 Codex，把整段提示词贴进去发送即可。
 
-开发模式：
-
-```bash
-npm run dev
-```
-
-常用页面：
+你不需要理解：
 
 ```text
-/                         Gallery
-/?demo=water-v2           水循环旗舰
-/?demo=eclipse            日食旗舰
-/?demo=dns                DNS 示例
-/?demo=binary             二分查找示例
+git clone
+npm install
+Three.js
+Shader
+Puppeteer
+FFmpeg
+Story Manifest
+S(t)
 ```
 
-播放器里可以：
+这些属于实现细节。
 
-- 播放 / 暂停；
-- 拖动时间轴；
-- 点击章节直接跳转；
-- 打开“深入解释”；
-- 切换语言；
-- 进入全屏。
+### 第 3 步：看结果，用人话继续改
 
-首次打开旗舰播放器时，会显示一条简短操作提示。
+如果成品不满意，直接描述你看到的问题。
 
-### 5. 修改以后怎么检查
-
-基础检查：
-
-```bash
-npm run typecheck
-npm run build
-```
-
-旗舰连续性检查：
-
-```bash
-npm run qa:continuity
-```
-
-只检查 Water v2：
-
-```bash
-npm run qa:water-v2:strict
-```
-
-QA 会在章节边界自动检查：
+例如：
 
 ```text
-t - 1 frame
-t
-t + 1 frame
+继续优化这一版：
+- 第二段太快；
+- 文字挡住动画主体；
+- 画面太暗；
+- 山体太像 demo；
+- 手机端标题太大；
+- 第 3 段到第 4 段镜头有点跳。
+
+修改完以后重新检查，并给我新的预览入口。
 ```
 
-并输出 contact sheet、boundary continuity 图片和 report.json。
+不需要自己判断该改 CSS、Three.js、shader 还是时间轴。
 
-### 6. 怎么导出
+---
 
-Water v2：
+## 在线 Prompt Builder
 
-```bash
-npm run export:water-v2:mp4
-npm run export:water-v2:gif
-npm run export:water-v2:png
-```
+如果你只知道“想做什么”，但不会写完整提示词，可以直接打开：
 
-字幕 / 解说：
+**https://kevin-luo.github.io/loop-animation/#prompt-builder**
 
-```bash
-npm run story:water-v2:zh
-npm run story:water-v2:en
-```
+只需要选择：
 
-输出通常位于：
+- 主题；
+- 受众；
+- 时长；
+- 画面比例；
+- 输出格式。
+
+然后点击**复制完整提示词**，粘贴给 Codex。
+
+生成的提示词已经包含：
+
+- Loop Animation 项目地址；
+- 自动获取项目的要求；
+- 连续动画规则；
+- 视觉质量要求；
+- UI 要求；
+- QA 要求；
+- 最终交付说明。
+
+---
+
+## 常见提示词示例
+
+### 科普：火山为什么会喷发
 
 ```text
-.output/
-```
+请使用 Loop Animation：
+https://github.com/kevin-luo/loop-animation
 
-视频 / GIF 导出需要 FFmpeg。
+如果当前工作区没有项目，请你自行获取并读取 Skill 后继续，不要让我执行 git/npm 命令。
 
-### 7. 常见需求怎么说
+请制作“火山为什么会喷发”的交互式科普动画。
 
-#### 技术原理
-
-```text
-$loop-animation
-
-解释 TCP 三次握手。
-受众：刚学网络的开发者
-时长：30 秒
-比例：16:9
-输出：HTML + MP4 + SRT
-
-让 Client 和 Server 始终保持为同一组对象，SYN / SYN-ACK / ACK 只作为章节，不要切换成三张独立页面。
-```
-
-#### 科普
-
-```text
-$loop-animation
-
-解释火山为什么会喷发。
 受众：普通用户
+语言：中文
 时长：40 秒
 比例：9:16
 输出：HTML + MP4
 
-希望能看到地表、岩层、岩浆房和压力变化。复杂自然环境允许混合 raster/img2 与 Three.js 动画。
+重点展示地表、岩层、岩浆房、压力累积和喷发过程。
+复杂自然场景允许 raster/img2 + shader + Three.js 混合。
+画面要有纪录片感，说明文字不要挡住主体。
+最后给我预览入口和导出结果。
 ```
 
-#### 算法
+### 技术：TCP 三次握手
 
 ```text
-$loop-animation
+请使用 Loop Animation：
+https://github.com/kevin-luo/loop-animation
 
-解释快速排序。
+请制作“TCP 三次握手”的交互式动画解释。
+
+受众：刚学网络的开发者
+语言：中文
+时长：30 秒
+比例：16:9
+输出：HTML + MP4 + SRT
+
+让 Client 和 Server 始终保持为同一组对象，SYN / SYN-ACK / ACK 只是讲解章节，不要做成三张独立页面。
+最后跑严格连续性 QA，并给我预览入口。
+```
+
+### 算法：快速排序
+
+```text
+请使用 Loop Animation：
+https://github.com/kevin-luo/loop-animation
+
+请制作“快速排序”的交互式动画解释。
+
 受众：初学者
+语言：中文
 时长：35 秒
 比例：16:9
 输出：HTML + GIF
 
 重点让 pivot、左右分区和数组状态保持连续，不要每一步重新画一套数组。
-```
-
-### 8. 如果效果不够好，怎么继续让 Codex 改
-
-不要只说“优化一下”。优先指出具体问题：
-
-```text
-继续优化这一版：
-- 主体被说明文字挡住了；
-- 第 2 → 第 3 章镜头速度突然变化；
-- 山体太像基础几何，没有真实层次；
-- 手机端章节标题太大；
-- 降雨开始得比旁白早；
-- 需要把画面层次做得更像纪录片，不要像 SVG 信息图。
-
-修改后重新跑 strict continuity QA，并给我新的预览入口和改动摘要。
+最后给我可交互预览和 GIF。
 ```
 
 ---
 
-## English: start in 60 seconds
+## 如果 Codex 说“我访问不了 GitHub”怎么办
 
-### 1. Clone the repository
+普通用户不用立刻去学 Git。
+
+直接回复 Codex：
+
+```text
+请不要给我终端命令。
+只告诉我现在需要在界面上完成的一个最简单操作，完成后你继续处理剩下的步骤。
+```
+
+Codex 的具体运行环境可能不同。有些环境可以直接访问 GitHub，有些环境需要先选择一个文件夹或 Git 仓库作为工作位置。
+
+你的目标始终是把技术准备交给 Codex，只保留必要的界面操作。
+
+---
+
+## 成品播放器怎么用
+
+旗舰播放器支持：
+
+- 播放 / 暂停；
+- 拖动时间轴；
+- 点击章节跳转；
+- 上一章 / 下一章；
+- “深入解释”；
+- 中英文切换；
+- 全屏；
+- 键盘时间轴操作。
+
+首次进入时会出现一条简短操作提示。
+
+---
+
+# English: beginner path
+
+Normal users do not need Git, npm or Three.js knowledge.
+
+### 1. Copy
+
+```text
+Use the Loop Animation open-source project to create an interactive visual explainer:
+https://github.com/kevin-luo/loop-animation
+
+If the project is not available in the current workspace, fetch it when GitHub access is available, read .agents/skills/loop-animation/SKILL.md, and continue.
+
+Do not stop at setup instructions and do not ask me to run git, npm or terminal commands myself. Handle project setup, dependencies, running, QA and export for me.
+
+Topic: Why can airplanes fly?
+Audience: general
+Language: English
+Duration: 30 seconds
+Aspect ratio: 16:9
+Outputs: interactive HTML + MP4 + SRT
+
+Choose sensible defaults and finish the task.
+At the end, tell me where to preview it, which files were generated, and what I should open next.
+
+If the environment truly cannot access GitHub, tell me only the single simplest UI action I need to take next instead of giving me terminal commands.
+```
+
+### 2. Paste into Codex
+
+Send the whole prompt.
+
+### 3. Refine in plain language
+
+```text
+Keep improving this version:
+- scene two is too fast;
+- text covers the main subject;
+- the visuals still feel like a demo;
+- make the camera transition smoother;
+- the mobile title is too large.
+
+Recheck it and give me the new preview entry point.
+```
+
+---
+
+# Developer appendix / 开发者附录
+
+下面才是开发者需要看的内容。普通用户可以完全忽略。
+
+## Clone and run locally
 
 ```bash
 git clone https://github.com/kevin-luo/loop-animation.git
 cd loop-animation
 npm install
+npm run dev
 ```
 
-Open the repository in Codex. The repo-scoped Skill is already included at:
+Repo-scoped Skill:
 
 ```text
 .agents/skills/loop-animation/SKILL.md
 ```
 
-### 2. Minimal request
-
-```text
-$loop-animation
-
-Explain why airplanes can fly.
-```
-
-Missing non-critical details use sensible defaults automatically.
-
-### 3. More controlled request
-
-```text
-$loop-animation
-
-Create an interactive visual explainer about “Why can airplanes fly?”.
-
-Audience: general
-Language: English
-Duration: 30 seconds
-Aspect ratio: 16:9
-Outputs: HTML + MP4 + SRT/VTT
-
-Choose the visual grammar and art direction before coding. Use one continuous world S(t), keep important objects continuous, derive visual state from absolute time, keep UI away from the subject, and run strict continuity QA before export.
-
-If non-critical details are missing, choose sensible defaults and continue instead of repeatedly asking questions.
-```
-
-### 4. Preview and QA
+## Quality checks
 
 ```bash
-npm run dev
 npm run typecheck
 npm run build
 npm run qa:continuity
+npm run ui:smoke
 ```
 
-### 5. Export
+## Export
 
 ```bash
 npm run export:water-v2:mp4
 npm run export:water-v2:gif
 npm run export:water-v2:png
+npm run story:water-v2:zh
 npm run story:water-v2:en
 ```
 
-Video/GIF export requires FFmpeg.
+视频 / GIF 导出需要 FFmpeg。
 
----
-
-## Troubleshooting
-
-### Codex does not recognize `$loop-animation`
-
-Confirm you opened Codex inside the repository and that this file exists:
-
-```text
-.agents/skills/loop-animation/SKILL.md
-```
-
-You can also install the Skill globally:
+## Install the Skill globally
 
 ```bash
 npm run skill:install
 ```
 
-### MP4 or GIF export fails
-
-Check FFmpeg:
-
-```bash
-ffmpeg -version
-```
-
-### Browser export / QA fails
-
-The export and QA scripts use Puppeteer/Chromium. Run:
-
-```bash
-npm install
-npm run build
-```
-
-and inspect the reported Chromium/Puppeteer error.
-
-### The animation works but still looks like a demo
-
-Ask Codex to audit four things separately:
+安装到：
 
 ```text
-visual hierarchy
-art direction / materials
-camera continuity
-UI obstruction / mobile layout
+$HOME/.agents/skills/loop-animation
 ```
 
-For rich natural scenes, explicitly allow a hybrid raster/img2 + shader + Three.js treatment instead of forcing everything into primitive geometry.
+这个步骤**不是普通用户复制提示词使用项目的前置条件**。
