@@ -5,13 +5,13 @@ import process from 'node:process';
 import puppeteer from 'puppeteer';
 
 const args = parseArgs(process.argv.slice(2));
-const demo = String(args.demo ?? 'water').toLowerCase();
+const demo = String(args.demo ?? 'water-v2').toLowerCase();
 const lang = String(args.lang ?? 'en').toLowerCase();
 const distDir = resolve('dist');
 const outDir = resolve(String(args.output ?? `.output/story/${demo}`));
 
-if (!['water', 'eclipse'].includes(demo)) {
-  throw new Error(`Story export is currently available for flagship StagePlayer demos only: water, eclipse. Received: ${demo}`);
+if (!['water', 'water-v2', 'eclipse'].includes(demo)) {
+  throw new Error(`Story export is currently available for flagship StagePlayer demos only: water-v2, water, eclipse. Received: ${demo}`);
 }
 if (!['zh', 'en'].includes(lang)) throw new Error(`Unsupported language: ${lang}`);
 if (!existsSync(distDir)) throw new Error('dist/ not found. Run `npm run build` first.');
