@@ -524,10 +524,9 @@ Then run:
 ```bash
 npm run typecheck
 npm run build
-node scripts/qa.mjs --demo my-topic
 ```
 
-If you introduce a new demo ID, extend the accepted demo list in `scripts/qa.mjs` and `scripts/export.mjs` or refactor it into a shared registry.
+For built-in demo IDs you can run the QA/export tools directly. If you introduce a new demo ID, add it to the central routing/export list before using those commands. A shared Example Registry is planned to remove these remaining hard-coded lists.
 
 ## Visual grammars
 
