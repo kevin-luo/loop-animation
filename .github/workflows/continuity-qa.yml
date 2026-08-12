@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'src/examples/water/**'
+      - 'src/examples/eclipse/**'
       - 'src/runtime/animation.ts'
       - 'src/runtime/canvas-viewport.ts'
       - 'src/runtime/stage-player.ts'
@@ -15,9 +16,9 @@ on:
       - '.github/workflows/continuity-qa.yml'
 
 jobs:
-  water-continuity:
+  flagship-continuity:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,10 +27,14 @@ jobs:
       - run: npm install
       - name: Run strict water continuity QA
         run: npm run qa:water:strict
-      - name: Upload QA report
+      - name: Run strict eclipse continuity QA
+        run: npm run qa:eclipse:strict
+      - name: Upload QA reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: water-continuity-qa
-          path: .output/qa/water
+          name: flagship-continuity-qa
+          path: |
+            .output/qa/water
+            .output/qa/eclipse
           if-no-files-found: warn
