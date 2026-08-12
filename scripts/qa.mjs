@@ -5,12 +5,14 @@ import process from 'node:process';
 import puppeteer from 'puppeteer';
 
 const args = parseArgs(process.argv.slice(2));
+const demo = String(args.demo ?? 'eclipse').toLowerCase();
 const width = Number(args.width ?? 1080);
 const height = Number(args.height ?? 1920);
-const outDir = resolve(String(args.output ?? '.output/qa'));
+const outDir = resolve(String(args.output ?? `.output/qa/${demo}`));
 const distDir = resolve('dist');
 const framesDir = join(outDir, 'frames');
 
+if (!['eclipse', 'dns', 'binary'].includes(demo)) throw new Error(`Unknown demo: ${demo}`);
 if (!existsSync(distDir)) throw new Error('dist/ not found. Run `npm run build` first.');
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(framesDir, { recursive: true });
@@ -19,7 +21,7 @@ const server = createStaticServer(distDir);
 await new Promise((done) => server.listen(0, '127.0.0.1', done));
 const address = server.address();
 if (!address || typeof address === 'string') throw new Error('Unable to start QA server.');
-const url = `http://127.0.0.1:${address.port}`;
+const url = `http://127.0.0.1:${address.port}/?demo=${encodeURIComponent(demo)}&export=1`;
 
 let browser;
 try {
@@ -48,7 +50,7 @@ try {
     const file = join(framesDir, `qa-${String(index + 1).padStart(2, '0')}-${time.toFixed(3)}s.png`);
     await page.screenshot({ path: file, type: 'png' });
     frames.push({ time, file });
-    process.stdout.write(`\rCapturing QA frame ${index + 1}/${times.length}`);
+    process.stdout.write(`\rCapturing ${demo} QA frame ${index + 1}/${times.length}`);
   }
   process.stdout.write('\n');
 
@@ -69,11 +71,11 @@ try {
     header{display:flex;align-items:end;justify-content:space-between;margin-bottom:24px}h1{font-size:28px;margin:0}p{margin:6px 0 0;color:#98a2b3}
     .grid{display:grid;grid-template-columns:repeat(${columns},${cardWidth}px);gap:24px}.card{overflow:hidden;border:1px solid #242b36;border-radius:16px;background:#0e131b}
     .card img{display:block;width:100%;height:${cardImageHeight}px;object-fit:cover;background:#000}.card div{display:flex;justify-content:space-between;padding:14px 16px;color:#aab4c2}.card strong{color:#fff}
-  </style></head><body><header><div><h1>Loop Animation · Visual QA</h1><p>${width}×${height} · ${meta.duration.toFixed(2)}s · ${frames.length} checkpoints</p></div><p>Inspect composition, clipping, labels, dead frames and continuity.</p></header><main class="grid">${cards}</main></body></html>`, { waitUntil: 'load' });
+  </style></head><body><header><div><h1>Loop Animation · Visual QA · ${demo}</h1><p>${width}×${height} · ${meta.duration.toFixed(2)}s · ${frames.length} checkpoints</p></div><p>Inspect composition, clipping, labels, dead frames and continuity.</p></header><main class="grid">${cards}</main></body></html>`, { waitUntil: 'load' });
 
   const contactSheet = join(outDir, 'contact-sheet.png');
   await sheet.screenshot({ path: contactSheet, type: 'png', fullPage: true });
-  writeFileSync(join(outDir, 'report.json'), `${JSON.stringify({ width, height, duration: meta.duration, times }, null, 2)}\n`);
+  writeFileSync(join(outDir, 'report.json'), `${JSON.stringify({ demo, width, height, duration: meta.duration, times }, null, 2)}\n`);
   console.log(`✓ Contact sheet: ${contactSheet}`);
   console.log(`✓ QA metadata: ${join(outDir, 'report.json')}`);
 } finally {
@@ -87,9 +89,7 @@ async function renderAt(page, time) {
 }
 
 function parseTimes(value, controllerTimes, duration) {
-  const explicit = typeof value === 'string'
-    ? value.split(',').map(Number).filter(Number.isFinite)
-    : [];
+  const explicit = typeof value === 'string' ? value.split(',').map(Number).filter(Number.isFinite) : [];
   const defaults = [0, duration * 0.25, duration * 0.5, duration * 0.75, Math.max(0, duration - 0.001)];
   const source = explicit.length ? explicit : (controllerTimes?.length ? controllerTimes : defaults);
   return [...new Set(source.map((time) => Number(Math.min(duration, Math.max(0, time)).toFixed(3))))].sort((a, b) => a - b);
