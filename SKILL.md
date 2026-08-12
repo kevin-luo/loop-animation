@@ -9,6 +9,46 @@ description: Create polished interactive educational explainers with Three.js, c
 
 Loop Animation treats an explainer as **one continuous visual world**, not a set of animated slides.
 
+## Start here
+
+A valid request can be as short as:
+
+```text
+$loop-animation
+
+解释为什么飞机能飞起来。
+```
+
+or:
+
+```text
+$loop-animation
+
+Explain why airplanes can fly.
+```
+
+Users do not need to provide Three.js implementation details. When non-critical details are missing, use sensible defaults and continue instead of repeatedly asking questions.
+
+Default profile:
+
+```text
+Audience: general
+Language: user's language
+Duration: 30s
+Aspect ratio: 16:9
+Chapters: 5–7
+Interaction: play/pause + draggable timeline + chapter navigation + deeper explanation
+Primary output: interactive HTML
+Continuity QA: strict
+```
+
+For a guided prompt builder and practical usage instructions:
+
+```text
+Live Gallery: https://kevin-luo.github.io/loop-animation/#prompt-builder
+Guide: docs/USAGE.md
+```
+
 ## Core architecture
 
 ```text
@@ -81,6 +121,8 @@ cloud.position.y = baseY + wave(time);
 - Use `observeRendererViewport()` instead of resizing WebGL every frame.
 - Prefer `THREE.Points` / `InstancedMesh` for repeated particles.
 - Seed procedural randomness.
+- Keep controls and captions away from the main subject.
+- Lazy-load non-primary WebGL previews on gallery pages.
 
 ## QA
 
