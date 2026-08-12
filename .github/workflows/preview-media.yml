@@ -1,0 +1,52 @@
+name: Build Preview Media
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/examples/**'
+      - 'src/runtime/**'
+      - 'scripts/export.mjs'
+      - '.github/workflows/preview-media.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: preview-media
+  cancel-in-progress: true
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Ensure FFmpeg
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+      - run: npm run build
+      - name: Render README preview from the real Three.js demo
+        run: |
+          rm -rf .preview docs/media/eclipse.gif
+          node scripts/export.mjs --format gif --demo eclipse --width 800 --height 450 --fps 12 --output .preview
+          mkdir -p docs/media
+          cp .preview/eclipse.gif docs/media/eclipse.gif
+      - name: Commit refreshed preview
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/media/eclipse.gif
+          if git diff --cached --quiet; then
+            echo "Preview unchanged"
+            exit 0
+          fi
+          git commit -m "docs: refresh generated animation preview [skip ci]"
+          git push
