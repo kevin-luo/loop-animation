@@ -17,6 +17,7 @@ on:
       - 'scripts/qa.mjs'
       - 'scripts/export-story.mjs'
       - 'package.json'
+      - 'README.md'
       - '.github/workflows/continuity-qa.yml'
 
 jobs:
