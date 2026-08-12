@@ -64,7 +64,6 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.08;
 
-// Sky is rendered as a full scene background shader so the stage never reads as a flat SVG-like diagram.
 const sky = new THREE.Mesh(
   new THREE.SphereGeometry(72, 32, 16),
   new THREE.ShaderMaterial({
@@ -86,7 +85,6 @@ const sky = new THREE.Mesh(
   }),
 );
 scene.add(sky);
-
 scene.add(new THREE.HemisphereLight('#d8edff', '#263a2a', 1.7));
 const sunLight = new THREE.DirectionalLight('#fff0c3', 3.4);
 sunLight.position.set(-9, 12, 5);
@@ -111,18 +109,29 @@ ocean.rotation.x = -Math.PI / 2;
 ocean.position.set(-5.4, -2.0, 0.7);
 scene.add(ocean);
 
-// Deterministic sculpted terrain: broad shapes + many small triangles read as landscape instead of iconography.
 const terrainGeo = new THREE.PlaneGeometry(14, 10, 90, 64);
-const position = terrainGeo.attributes.position as THREE.BufferAttribute;
-for (let i = 0; i < position.count; i += 1) {
-  const x = position.getX(i); const y = position.getY(i);
+const terrainPosition = terrainGeo.attributes.position as THREE.BufferAttribute;
+const terrainColors = new Float32Array(terrainPosition.count * 3);
+const low = new THREE.Color('#4d7847');
+const mid = new THREE.Color('#607158');
+const rock = new THREE.Color('#77736c');
+const snow = new THREE.Color('#e6edf1');
+const color = new THREE.Color();
+for (let i = 0; i < terrainPosition.count; i += 1) {
+  const x = terrainPosition.getX(i); const y = terrainPosition.getY(i);
   const ridge = 3.8 * Math.exp(-Math.pow((x - 2.3) / 3.2, 2)) * Math.exp(-Math.pow((y + .2) / 4.5, 2));
   const detail = Math.sin(x * 1.5 + y * .7) * .18 + Math.sin(y * 2.1 - x * .4) * .10;
   const coastFade = THREE.MathUtils.smoothstep(x, -3.4, -1.0);
-  position.setZ(i, (ridge + detail) * coastFade);
+  const height = (ridge + detail) * coastFade;
+  terrainPosition.setZ(i, height);
+  if (height < .75) color.lerpColors(low, mid, Math.max(0, height / .75));
+  else if (height < 2.5) color.lerpColors(mid, rock, (height - .75) / 1.75);
+  else color.lerpColors(rock, snow, Math.min(1, (height - 2.5) / 1.2));
+  terrainColors[i * 3] = color.r; terrainColors[i * 3 + 1] = color.g; terrainColors[i * 3 + 2] = color.b;
 }
+terrainGeo.setAttribute('color', new THREE.BufferAttribute(terrainColors, 3));
 terrainGeo.computeVertexNormals();
-const terrain = new THREE.Mesh(terrainGeo, new THREE.MeshStandardMaterial({ color: '#5f7c4e', roughness: .96, metalness: 0, flatShading: false }));
+const terrain = new THREE.Mesh(terrainGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .96, metalness: 0 }));
 terrain.rotation.x = -Math.PI / 2;
 terrain.rotation.z = -0.08;
 terrain.position.set(4.2, -1.88, -0.15);
@@ -152,20 +161,23 @@ scene.add(clouds);
 for (let i = 0; i < 24; i += 1) {
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTexture, transparent: true, opacity: .48, depthWrite: false }));
   const a = seeded(i + 41); const b = seeded(i + 91); const c = seeded(i + 151);
-  sprite.position.set(2.2 + a*5.2, 3.4 + b*1.45, -1.7 + c*2.2);
-  const s = 1.15 + seeded(i + 401) * 1.25; sprite.scale.set(2.15*s, 1.18*s, 1);
+  const baseY = 3.4 + b * 1.45;
+  sprite.position.set(2.2 + a * 5.2, baseY, -1.7 + c * 2.2);
+  sprite.userData.baseY = baseY;
+  const s = 1.15 + seeded(i + 401) * 1.25;
+  sprite.scale.set(2.15 * s, 1.18 * s, 1);
   clouds.add(sprite);
 }
 
 const vapor = pointsField(180, '#d8f5ff', .085, (i) => {
-  const r=seeded(i+10); return v(-6.5+r*3.7,-1.72+seeded(i+20)*.38,-.3+seeded(i+30)*2.5);
+  const r = seeded(i + 10); return v(-6.5 + r * 3.7, -1.72 + seeded(i + 20) * .38, -.3 + seeded(i + 30) * 2.5);
 });
-const rain = pointsField(300, '#9fdcff', .052, (i) => v(2.8+seeded(i+50)*4.6,1.8+seeded(i+60)*2.7,-1.2+seeded(i+70)*2.7));
+const rain = pointsField(300, '#9fdcff', .052, (i) => v(2.8 + seeded(i + 50) * 4.6, 1.8 + seeded(i + 60) * 2.7, -1.2 + seeded(i + 70) * 2.7));
 scene.add(vapor, rain);
 
-const hero = new THREE.Mesh(new THREE.SphereGeometry(.12,24,24), new THREE.MeshBasicMaterial({ color: '#baf1ff' }));
-const heroGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: radialTexture('rgba(110,220,255,1)'), transparent:true, opacity:.78, blending:THREE.AdditiveBlending, depthWrite:false }));
-heroGlow.scale.set(.78,.78,1); scene.add(hero,heroGlow);
+const hero = new THREE.Mesh(new THREE.SphereGeometry(.12, 24, 24), new THREE.MeshBasicMaterial({ color: '#baf1ff' }));
+const heroGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: radialTexture('rgba(110,220,255,1)'), transparent: true, opacity: .78, blending: THREE.AdditiveBlending, depthWrite: false }));
+heroGlow.scale.set(.78, .78, 1); scene.add(hero, heroGlow);
 
 const heroPath = new THREE.CatmullRomCurve3([
   v(-5.9,-1.5,.9), v(-5.3,.2,.8), v(-3.3,2.0,.25), v(.7,3.2,-.6), v(4.1,3.6,-.55), v(5.2,1.0,.1), v(4.4,-1.2,.25), v(2.2,-1.55,.25), v(-.6,-1.9,.58), v(2.0,-2.65,.55), v(4.2,-3.25,.5), v(-1.0,-2.68,.82)
@@ -177,68 +189,108 @@ const cameraCurve = new THREE.CatmullRomCurve3([
 const lookCurve = new THREE.CatmullRomCurve3([
   v(-2.7,-.2,0),v(-2.0,.5,0),v(2.1,.7,0),v(4.6,.4,0),v(3.2,-1.1,.2),v(2.4,-2.1,.45),v(1.2,-1.8,.4)
 ], false, 'centripetal');
-const viewport = observeRendererViewport(renderer,camera,ui.stage,{maxPixelRatio:1.35});
+const viewport = observeRendererViewport(renderer, camera, ui.stage, { maxPixelRatio: 1.35 });
 const projected = new THREE.Vector3();
 
-function renderScene(time:number, progress:number){
-  const evaporation=envelope(time,.4,2.0,8.0,10.0);
-  const transport=envelope(time,4.8,6.8,13.0,15.0);
-  const precipitation=envelope(time,10.7,12.5,19.2,21.0);
-  const runoff=envelope(time,16.0,18.2,25.0,27.0);
-  const groundwater=reveal(time,20.5,25.3);
+function renderScene(time: number, progress: number) {
+  const evaporation = envelope(time, .4, 2.0, 8.0, 10.0);
+  const transport = envelope(time, 4.8, 6.8, 13.0, 15.0);
+  const precipitation = envelope(time, 10.7, 12.5, 19.2, 21.0);
+  const runoff = envelope(time, 16.0, 18.2, 25.0, 27.0);
+  const groundwater = reveal(time, 20.5, 25.3);
 
-  (ocean.material as THREE.ShaderMaterial).uniforms.uTime.value=time;
-  (ocean.material as THREE.ShaderMaterial).uniforms.uStrength.value=evaporation;
-  riverMat.opacity=.18+runoff*.62;
-  undergroundMat.opacity=.035+groundwater*.42;
+  (ocean.material as THREE.ShaderMaterial).uniforms.uTime.value = time;
+  (ocean.material as THREE.ShaderMaterial).uniforms.uStrength.value = evaporation;
+  riverMat.opacity = .18 + runoff * .62;
+  undergroundMat.opacity = .035 + groundwater * .42;
 
-  const vaporMat=vapor.material as THREE.PointsMaterial; vaporMat.opacity=.04+evaporation*.58;
-  const vaporPos=vapor.geometry.attributes.position as THREE.BufferAttribute;
-  for(let i=0;i<vaporPos.count;i+=1){ const base=-1.72+seeded(i+20)*.38; const phase=(time*.24+seeded(i+300))%1; vaporPos.setY(i,base+phase*4.4); vaporPos.setX(i,-6.5+seeded(i+10)*3.7+Math.sin(time*.45+i)*.05); }
-  vaporPos.needsUpdate=true;
+  const vaporMat = vapor.material as THREE.PointsMaterial;
+  vaporMat.opacity = .04 + evaporation * .58;
+  const vaporPos = vapor.geometry.attributes.position as THREE.BufferAttribute;
+  for (let i = 0; i < vaporPos.count; i += 1) {
+    const base = -1.72 + seeded(i + 20) * .38;
+    const phase = (time * .24 + seeded(i + 300)) % 1;
+    vaporPos.setY(i, base + phase * 4.4);
+    vaporPos.setX(i, -6.5 + seeded(i + 10) * 3.7 + Math.sin(time * .45 + i) * .05);
+  }
+  vaporPos.needsUpdate = true;
 
-  const rainMat=rain.material as THREE.PointsMaterial; rainMat.opacity=precipitation*.78;
-  const rainPos=rain.geometry.attributes.position as THREE.BufferAttribute;
-  for(let i=0;i<rainPos.count;i+=1){ const phase=(time*.72+seeded(i+500))%1; rainPos.setY(i,4.2-phase*5.8); }
-  rainPos.needsUpdate=true;
+  const rainMat = rain.material as THREE.PointsMaterial;
+  rainMat.opacity = precipitation * .78;
+  const rainPos = rain.geometry.attributes.position as THREE.BufferAttribute;
+  for (let i = 0; i < rainPos.count; i += 1) {
+    const phase = (time * .72 + seeded(i + 500)) % 1;
+    rainPos.setY(i, 4.2 - phase * 5.8);
+  }
+  rainPos.needsUpdate = true;
 
-  clouds.position.x=Math.sin(time*.08)*.24+transport*.52;
-  clouds.children.forEach((child,index)=>{ const mat=(child as THREE.Sprite).material as THREE.SpriteMaterial; mat.opacity=.34+transport*.18+precipitation*.18; child.position.y += Math.sin(time*.11+index*.7)*.0008; });
+  clouds.position.x = Math.sin(time * .08) * .24 + transport * .52;
+  clouds.children.forEach((child, index) => {
+    const sprite = child as THREE.Sprite;
+    const mat = sprite.material as THREE.SpriteMaterial;
+    mat.opacity = .34 + transport * .18 + precipitation * .18;
+    sprite.position.y = Number(sprite.userData.baseY ?? 3.4) + Math.sin(time * .11 + index * .7) * .05;
+  });
 
-  // The highlighted drop is continuous through the whole animation; chapters never teleport it.
-  const p=Math.min(.9999,Math.max(0,progress)); heroPath.getPointAt(p,hero.position); heroGlow.position.copy(hero.position);
-  heroGlow.scale.setScalar(.65+Math.sin(time*4)*.06);
+  const p = Math.min(.9999, Math.max(0, progress));
+  heroPath.getPointAt(p, hero.position);
+  heroGlow.position.copy(hero.position);
+  heroGlow.scale.setScalar(.65 + Math.sin(time * 4) * .06);
 
-  cameraCurve.getPointAt(progress,camera.position); const target=lookCurve.getPointAt(progress); camera.lookAt(target);
-  renderer.render(scene,camera);
-  project(hero.position,heroTag,1,12,-22);
-  updateProcessTag(time,evaporation,transport,precipitation,runoff,groundwater);
+  cameraCurve.getPointAt(progress, camera.position);
+  const target = lookCurve.getPointAt(progress);
+  camera.lookAt(target);
+  renderer.render(scene, camera);
+  project(hero.position, heroTag, 1, 12, -22);
+  updateProcessTag(evaporation, transport, precipitation, runoff, groundwater);
 }
 
-function updateProcessTag(time:number,ev:number,tr:number,pr:number,ro:number,gw:number){
-  const t=language==='zh'
+function updateProcessTag(ev: number, tr: number, pr: number, ro: number, gw: number) {
+  const t = language === 'zh'
     ? [['蒸发','太阳能让水离开海面'],['输送','风把水汽送向山地'],['降水','云滴长大并落回地面'],['径流','水沿地形重新汇向海洋'],['地下水','渗入地下的水缓慢返回']]
     : [['Evaporation','solar energy lifts water'],['Transport','wind carries moisture inland'],['Precipitation','droplets grow and fall'],['Runoff','terrain routes water back'],['Groundwater','infiltrated water returns slowly']];
-  const strengths=[ev,tr,pr,ro,gw]; let index=0; strengths.forEach((value,i)=>{ if(value>strengths[index]) index=i; });
-  processTag.querySelector('strong')!.textContent=t[index][0]; processTag.querySelector('small')!.textContent=t[index][1];
-  processTag.style.opacity=String(Math.max(...strengths)*.92); processTag.style.left=index===0?'24%':index===1?'51%':index===2?'70%':index===3?'62%':'58%'; processTag.style.top=index===0?'66%':index===1?'25%':index===2?'31%':index===3?'64%':'78%';
-  heroTag.querySelector('span')!.textContent=language==='zh'?'同一滴水':'the same drop';
+  const strengths = [ev, tr, pr, ro, gw];
+  let index = 0;
+  strengths.forEach((value, i) => { if (value > strengths[index]) index = i; });
+  processTag.querySelector('strong')!.textContent = t[index][0];
+  processTag.querySelector('small')!.textContent = t[index][1];
+  processTag.style.opacity = String(Math.max(...strengths) * .92);
+  processTag.style.left = index === 0 ? '24%' : index === 1 ? '51%' : index === 2 ? '70%' : index === 3 ? '62%' : '58%';
+  processTag.style.top = index === 0 ? '66%' : index === 1 ? '25%' : index === 2 ? '31%' : index === 3 ? '64%' : '78%';
+  heroTag.querySelector('span')!.textContent = language === 'zh' ? '同一滴水' : 'the same drop';
 }
 
-function project(world:THREE.Vector3,element:HTMLElement,opacity:number,dx=0,dy=0){ projected.copy(world).project(camera); const w=ui.stage.clientWidth,h=ui.stage.clientHeight; const x=(projected.x*.5+.5)*w+dx,y=(-projected.y*.5+.5)*h+dy; element.style.transform=`translate(${x}px,${y}px) translate(-50%,-50%)`; element.style.opacity=String(opacity); }
-function pointsField(count:number,color:string,size:number,create:(i:number)=>THREE.Vector3){ const data=new Float32Array(count*3); for(let i=0;i<count;i+=1){const p=create(i);data[i*3]=p.x;data[i*3+1]=p.y;data[i*3+2]=p.z;} const geometry=new THREE.BufferGeometry(); geometry.setAttribute('position',new THREE.BufferAttribute(data,3)); return new THREE.Points(geometry,new THREE.PointsMaterial({color,size,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending})); }
-function radialTexture(center:string){ const c=document.createElement('canvas'); c.width=c.height=128; const ctx=c.getContext('2d')!; const g=ctx.createRadialGradient(64,64,2,64,64,62); g.addColorStop(0,center); g.addColorStop(.45,'rgba(255,255,255,.46)'); g.addColorStop(1,'rgba(255,255,255,0)'); ctx.fillStyle=g;ctx.fillRect(0,0,128,128); return new THREE.CanvasTexture(c); }
-function seeded(seed:number){ const x=Math.sin(seed*12.9898+78.233)*43758.5453; return x-Math.floor(x); }
-function v(x:number,y:number,z:number){return new THREE.Vector3(x,y,z);}
-function get<T extends Element>(selector:string){const e=document.querySelector<T>(selector);if(!e)throw new Error(`Missing ${selector}`);return e;}
+function project(world: THREE.Vector3, element: HTMLElement, opacity: number, dx = 0, dy = 0) {
+  projected.copy(world).project(camera);
+  const w = ui.stage.clientWidth, h = ui.stage.clientHeight;
+  const x = (projected.x * .5 + .5) * w + dx, y = (-projected.y * .5 + .5) * h + dy;
+  element.style.transform = `translate(${x}px,${y}px) translate(-50%,-50%)`;
+  element.style.opacity = String(opacity);
+}
+function pointsField(count: number, colorValue: string, size: number, create: (i: number) => THREE.Vector3) {
+  const data = new Float32Array(count * 3);
+  for (let i = 0; i < count; i += 1) { const p = create(i); data[i * 3] = p.x; data[i * 3 + 1] = p.y; data[i * 3 + 2] = p.z; }
+  const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.BufferAttribute(data, 3));
+  return new THREE.Points(geometry, new THREE.PointsMaterial({ color: colorValue, size, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+}
+function radialTexture(center: string) {
+  const canvas = document.createElement('canvas'); canvas.width = canvas.height = 128;
+  const ctx = canvas.getContext('2d')!; const gradient = ctx.createRadialGradient(64, 64, 2, 64, 64, 62);
+  gradient.addColorStop(0, center); gradient.addColorStop(.45, 'rgba(255,255,255,.46)'); gradient.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gradient; ctx.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(canvas);
+}
+function seeded(seed: number) { const x = Math.sin(seed * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+function v(x: number, y: number, z: number) { return new THREE.Vector3(x, y, z); }
+function get<T extends Element>(selector: string) { const element = document.querySelector<T>(selector); if (!element) throw new Error(`Missing ${selector}`); return element; }
 
-const controller=new DeterministicTimeline({duration:DURATION,steps:STEPS,qaTimes:[1.5,7.8,13.8,20.2,27.5],onRender:renderScene});
-window.__LOOP_ANIMATION__=controller;
+const controller = new DeterministicTimeline({ duration: DURATION, steps: STEPS, qaTimes: [1.5, 7.8, 13.8, 20.2, 27.5], onRender: renderScene });
+window.__LOOP_ANIMATION__ = controller;
 ui.bindController(controller);
-
-function applyLanguage(){ ui.applyCopy(copy[language],language); controller.renderAt(controller.currentTime); }
-ui.languageButton.addEventListener('click',()=>{language=language==='zh'?'en':'zh';persistLanguage(language);const url=new URL(location.href);url.searchParams.set('lang',language);history.replaceState({},'',url);applyLanguage();});
+function applyLanguage() { ui.applyCopy(copy[language], language); controller.renderAt(controller.currentTime); }
+ui.languageButton.addEventListener('click', () => {
+  language = language === 'zh' ? 'en' : 'zh'; persistLanguage(language);
+  const url = new URL(location.href); url.searchParams.set('lang', language); history.replaceState({}, '', url); applyLanguage();
+});
 applyLanguage();
-
-window.addEventListener('keydown',(event)=>{if(event.key===' '){event.preventDefault();controller.isPlaying?controller.pause():controller.play();}});
-window.addEventListener('beforeunload',()=>{viewport.dispose();ui.dispose();controller.destroy();renderer.dispose();});
+window.addEventListener('keydown', (event) => { if (event.key === ' ') { event.preventDefault(); controller.isPlaying ? controller.pause() : controller.play(); } });
+window.addEventListener('beforeunload', () => { viewport.dispose(); ui.dispose(); controller.destroy(); renderer.dispose(); });
