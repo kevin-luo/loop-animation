@@ -1,1 +1,0 @@
-.demo-frame-wrap iframe[src]~.demo-loading{opacity:1;pointer-events:auto}.demo-frame-wrap.is-loaded .demo-loading{opacity:0;pointer-events:none;transition:opacity .38s ease}.demo-frame-wrap.is-loaded .demo-loading span{animation-play-state:paused}@media(prefers-reduced-motion:reduce){.demo-frame-wrap.is-loaded .demo-loading{transition:none}}
