@@ -30,7 +30,10 @@ const url = `http://127.0.0.1:${address.port}/?demo=${encodeURIComponent(demo)}&
 
 let browser;
 try {
-  browser = await puppeteer.launch({ headless: true, args: ['--disable-dev-shm-usage'] });
+  browser = await puppeteer.launch({
+    headless: true,
+    args: ['--disable-dev-shm-usage', '--no-sandbox', '--disable-setuid-sandbox'],
+  });
   const page = await browser.newPage();
   await page.setViewport({ width, height, deviceScaleFactor: 1 });
   await page.goto(url, { waitUntil: 'networkidle0' });
