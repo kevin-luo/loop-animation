@@ -7,6 +7,7 @@ import puppeteer from 'puppeteer';
 
 const args = parseArgs(process.argv.slice(2));
 const format = String(args.format ?? 'mp4').toLowerCase();
+const demo = String(args.demo ?? 'eclipse').toLowerCase();
 const width = Number(args.width ?? 1080);
 const height = Number(args.height ?? 1920);
 const fps = Number(args.fps ?? 30);
@@ -15,6 +16,7 @@ const distDir = resolve('dist');
 const framesDir = join(outDir, 'frames');
 
 if (!['mp4', 'gif', 'png'].includes(format)) throw new Error(`Unsupported format: ${format}`);
+if (!['eclipse', 'dns', 'binary'].includes(demo)) throw new Error(`Unknown demo: ${demo}`);
 if (!existsSync(distDir)) throw new Error('dist/ not found. Run `npm run build` first.');
 mkdirSync(outDir, { recursive: true });
 rmSync(framesDir, { recursive: true, force: true });
@@ -24,7 +26,7 @@ const server = createStaticServer(distDir);
 await new Promise((done) => server.listen(0, '127.0.0.1', done));
 const address = server.address();
 if (!address || typeof address === 'string') throw new Error('Unable to start export server.');
-const url = `http://127.0.0.1:${address.port}`;
+const url = `http://127.0.0.1:${address.port}/?demo=${encodeURIComponent(demo)}&export=1`;
 
 let browser;
 try {
@@ -44,9 +46,9 @@ try {
   if (format === 'png') {
     const posterTime = Math.min(duration, Math.max(0, Number(args.time ?? duration * 0.55)));
     await renderAt(page, posterTime);
-    const output = join(outDir, 'poster.png');
+    const output = join(outDir, `${demo}-poster.png`);
     await page.screenshot({ path: output, type: 'png' });
-    console.log(`✓ PNG: ${output}`);
+    console.log(`✓ PNG (${demo}): ${output}`);
   } else {
     const frameCount = Math.ceil(duration * fps);
     const digits = Math.max(5, String(frameCount - 1).length);
@@ -56,19 +58,19 @@ try {
       const name = `frame-${String(frame).padStart(digits, '0')}.png`;
       await page.screenshot({ path: join(framesDir, name), type: 'png' });
       if (frame % Math.max(1, Math.round(fps)) === 0 || frame === frameCount - 1) {
-        process.stdout.write(`\rRendering ${frame + 1}/${frameCount} frames`);
+        process.stdout.write(`\rRendering ${demo}: ${frame + 1}/${frameCount} frames`);
       }
     }
     process.stdout.write('\n');
 
     if (format === 'mp4') {
-      const output = join(outDir, 'video.mp4');
+      const output = join(outDir, `${demo}.mp4`);
       runFfmpeg(['-y', '-framerate', String(fps), '-i', join(framesDir, `frame-%0${digits}d.png`), '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', output]);
-      console.log(`✓ MP4: ${output}`);
+      console.log(`✓ MP4 (${demo}): ${output}`);
     } else {
-      const output = join(outDir, 'preview.gif');
+      const output = join(outDir, `${demo}.gif`);
       runFfmpeg(['-y', '-framerate', String(fps), '-i', join(framesDir, `frame-%0${digits}d.png`), '-vf', `fps=${Math.min(15, fps)},scale='min(900,iw)':-2:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=sierra2_4a`, '-loop', '0', output]);
-      console.log(`✓ GIF: ${output}`);
+      console.log(`✓ GIF (${demo}): ${output}`);
     }
   }
 } finally {
