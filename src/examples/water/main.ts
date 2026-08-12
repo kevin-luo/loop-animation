@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { DeterministicTimeline, easeInOutCubic, lerp, stepProgressAt, type TimelineStep } from '../../runtime/animation';
-import { createLessonShell, type LessonShellCopy } from '../../runtime/lesson-shell';
+import { DeterministicTimeline, envelope, reveal, type TimelineStep } from '../../runtime/animation';
+import { observeRendererViewport } from '../../runtime/canvas-viewport';
+import { createStagePlayer, type StagePlayerCopy } from '../../runtime/stage-player';
 import { getLanguage, persistLanguage, type AppLanguage } from '../../runtime/i18n';
 import './style.css';
 
@@ -15,90 +16,499 @@ const STEPS = [
 
 const root = document.querySelector<HTMLDivElement>('#app');
 if (!root) throw new Error('Missing #app');
-let language: AppLanguage = getLanguage();
-let playing = false;
 
-const copy: Record<AppLanguage, LessonShellCopy> = {
+let language: AppLanguage = getLanguage();
+
+const copy: Record<AppLanguage, StagePlayerCopy> = {
   zh: {
-    brand: 'Loop Animation', category: 'Earth System / Flow', topicLabel: '主题', topicTitle: '水循环是怎么运转的？',
-    topicLead: '从海洋蒸发开始，跟着一滴水走过输送、降水、径流和地下水。', panelTitle: '解说', controlsTitle: '演示控制',
-    stepWord: '步骤', keyWord: '关键点', watchWord: '观察重点', play: '播放', pause: '暂停', previous: '上一步', next: '下一步', reset: '重置', lang: 'EN',
-    steps: [
-      { nav: '蒸发', kicker: 'Step 01 · 能量把水送上天空', title: '太阳加热海面，液态水变成水汽', body: '太阳持续给海洋输入能量，一部分水分子获得足够能量逃离水面，以水汽形式进入大气。', watch: '海面上的蓝色水汽粒子不断上升，太阳能量越强，蒸发越明显。', key: '蒸发把地表液态水转移到大气中，是水循环的起点。' },
-      { nav: '水汽输送', kicker: 'Step 02 · 风把水汽搬到陆地', title: '水汽随空气移动，并在高处凝结成云', body: '水汽被风输送到陆地上空。空气抬升后温度下降，水汽逐渐凝结成细小水滴和冰晶，云层因此变厚。', watch: '水汽流向山地，云团由稀疏变得厚重，表示冷却与凝结正在增强。', key: '风负责水平输送，抬升和降温让水汽重新变回液态或固态。' },
-      { nav: '降水', kicker: 'Step 03 · 云里的水终于落下来', title: '云滴不断碰撞长大，最终形成降雨', body: '云中的小水滴和冰晶不断碰撞、合并。当它们大到上升气流托不住时，就会以雨或雪的形式落回地表。', watch: '雨滴从云底落向山地，部分落到河谷，部分落到土壤表面。', key: '降水把大气中的水重新送回地表。' },
-      { nav: '地表径流', kicker: 'Step 04 · 水沿地形重新回到海洋', title: '落到地表的水顺着坡度汇入溪流和河流', body: '无法立即渗入土壤的水会沿地势低处流动，从坡面汇入溪流，再进入河流，最终重新流回海洋。', watch: '蓝色流线从山坡向河谷汇聚，河流逐渐变亮并一路连接到海岸。', key: '地形决定地表水往哪里汇集，河流把陆地上的水送回海洋。' },
-      { nav: '下渗与地下水', kicker: 'Step 05 · 还有一部分水会进入地下', title: '水渗进土壤和岩层，形成地下水流', body: '一部分降水会穿过土壤孔隙向下渗透，补给地下含水层。地下水会沿着岩层中的压力和坡度缓慢流动，最后重新补给河流、泉水或海洋。', watch: '地表出现向下的渗透流，地下蓝色通道被点亮，并缓慢流向海岸。', key: '水循环不仅发生在天空和地表，地下水也是整个系统的重要储库。' },
+    brand: 'Loop Animation',
+    category: 'Earth System · Flow',
+    topicTitle: '水循环：一滴水的旅程',
+    topicLead: '不是五个互不相干的镜头，而是一套连续流动的地球系统。',
+    chapterWord: '章节', keyWord: '记住', play: '播放', pause: '暂停', previous: '上一章', next: '下一章', details: '为什么？', closeDetails: '收起', language: 'EN',
+    chapters: [
+      { label: '蒸发', title: '太阳把海水送进大气', summary: '水没有消失。它只是从液态变成水汽，离开海面向上移动。', details: '太阳辐射给海洋表层提供能量。少量水分子获得足够动能后脱离液面，进入近地大气。温度、风速和空气湿度都会影响蒸发速度。', key: '蒸发改变水的状态，也改变水所在的位置。' },
+      { label: '输送与凝结', title: '风把水汽搬向陆地', summary: '空气移动带走水汽；空气抬升并冷却后，水汽开始凝结成云滴。', details: '水汽会跟随大尺度空气流动。当湿空气被地形抬升时，温度降低，达到露点后水汽凝结在微小颗粒周围，形成云滴或冰晶。', key: '风负责搬运，冷却负责把看不见的水汽重新变成可见的云。' },
+      { label: '降水', title: '云滴长大，重力开始占上风', summary: '小水滴不断碰撞和合并，直到上升气流再也托不住它们。', details: '云中的水滴和冰晶持续碰撞、聚并。当颗粒足够大时，重力超过空气上升运动提供的支撑，它们就以雨、雪或冰雹的形式落回地表。', key: '降水把大气中的水重新交还给地表。' },
+      { label: '地表径流', title: '落下来的水会顺着地形寻找低处', summary: '一部分水汇入溪流和河流，沿着重力方向重新接近海洋。', details: '降水到达地面后，如果土壤无法立刻吸收，就会形成地表径流。坡度和地形决定水流方向，小股水流逐渐汇成溪流、河流和湖泊。', key: '河流是陆地与海洋之间的一条快速回路。' },
+      { label: '地下水', title: '还有一条更慢、更隐蔽的回路', summary: '另一部分水向下渗入岩土层，在地下缓慢移动，最后仍会回到河流或海洋。', details: '水会穿过土壤孔隙和可渗透岩层，补给地下含水层。地下水的移动速度通常远慢于地表河流，但它能持续补给泉水、河流和近岸海洋。', key: '水循环同时发生在天空、地表和地下，而且这些路径彼此连接。' },
     ],
   },
   en: {
-    brand: 'Loop Animation', category: 'Earth System / Flow', topicLabel: 'Topic', topicTitle: 'How does the water cycle work?',
-    topicLead: 'Follow water from ocean evaporation through transport, precipitation, runoff and groundwater.', panelTitle: 'Explanation', controlsTitle: 'Playback',
-    stepWord: 'Step', keyWord: 'Key idea', watchWord: 'What to watch', play: 'Play', pause: 'Pause', previous: 'Previous', next: 'Next', reset: 'Reset', lang: '中文',
-    steps: [
-      { nav: 'Evaporation', kicker: 'Step 01 · Energy lifts water', title: 'Sunlight turns surface water into vapor', body: 'Solar energy warms the ocean. Some water molecules gain enough energy to escape the surface and enter the atmosphere as water vapor.', watch: 'Blue vapor particles rise from the ocean; stronger sunlight makes the evaporation stream more visible.', key: 'Evaporation transfers liquid water from the surface into the atmosphere.' },
-      { nav: 'Vapor transport', kicker: 'Step 02 · Wind carries moisture inland', title: 'Moist air rises, cools and condenses into clouds', body: 'Wind carries water vapor over land. As air is lifted over higher terrain it cools, and vapor condenses into tiny droplets and ice crystals, thickening the cloud.', watch: 'The vapor stream moves toward the mountains while the cloud mass becomes denser.', key: 'Wind transports moisture horizontally; uplift and cooling turn vapor back into droplets.' },
-      { nav: 'Precipitation', kicker: 'Step 03 · Cloud water returns to the surface', title: 'Cloud droplets grow until gravity wins', body: 'Tiny droplets and ice crystals collide and merge. Once they become too heavy for rising air to support, they fall as rain or snow.', watch: 'Rain falls from the cloud toward the mountain, valley and soil.', key: 'Precipitation moves atmospheric water back to Earth’s surface.' },
-      { nav: 'Surface runoff', kicker: 'Step 04 · Gravity routes water downhill', title: 'Water follows terrain into streams and rivers', body: 'Water that cannot immediately soak into the ground runs downhill, joins small channels, enters rivers and eventually returns to the ocean.', watch: 'Blue flow lines merge down the mountain and the river brightens all the way to the coast.', key: 'Topography controls where surface water collects and how rivers return it to the sea.' },
-      { nav: 'Infiltration & groundwater', kicker: 'Step 05 · Part of the cycle happens underground', title: 'Water seeps into soil and recharges groundwater', body: 'Some precipitation infiltrates through soil and rock, recharging aquifers. Groundwater then moves slowly through porous layers and eventually feeds rivers, springs or the ocean.', watch: 'Vertical infiltration paths light up, followed by a slow underground flow toward the coast.', key: 'Groundwater is a major hidden reservoir in the water cycle.' },
+    brand: 'Loop Animation',
+    category: 'Earth System · Flow',
+    topicTitle: 'The water cycle: one drop, one connected system',
+    topicLead: 'Not five disconnected scenes — one continuous journey through atmosphere, land and ocean.',
+    chapterWord: 'Chapter', keyWord: 'Remember', play: 'Play', pause: 'Pause', previous: 'Previous', next: 'Next', details: 'Why?', closeDetails: 'Close', language: '中文',
+    chapters: [
+      { label: 'Evaporation', title: 'Solar energy lifts water into the atmosphere', summary: 'The water does not disappear. It changes state and moves away from the ocean surface as vapor.', details: 'Solar radiation adds energy to surface water. Some molecules gain enough kinetic energy to escape the liquid surface and enter the lower atmosphere. Temperature, wind and humidity all influence the rate.', key: 'Evaporation changes both the state of water and where it is stored.' },
+      { label: 'Transport & condensation', title: 'Wind carries moisture inland', summary: 'Moving air transports vapor; uplift and cooling then allow it to condense into cloud droplets.', details: 'Water vapor travels with larger air masses. When moist air is forced upward over terrain it cools. Once it reaches the dew point, vapor condenses around tiny particles into droplets or ice crystals.', key: 'Wind transports moisture; cooling makes invisible vapor visible again.' },
+      { label: 'Precipitation', title: 'Droplets grow until gravity wins', summary: 'Cloud particles collide and merge until rising air can no longer keep them aloft.', details: 'Droplets and ice crystals repeatedly collide and combine. When they become sufficiently large, gravity overwhelms the support from rising air and they fall as rain, snow or hail.', key: 'Precipitation returns atmospheric water to the surface.' },
+      { label: 'Surface runoff', title: 'Water follows the terrain downhill', summary: 'Some water joins streams and rivers, moving quickly back toward the ocean under gravity.', details: 'Water that cannot immediately infiltrate the ground becomes surface runoff. Slope and terrain route it into small channels, then streams, rivers and lakes.', key: 'Rivers form a relatively fast return path from land to ocean.' },
+      { label: 'Groundwater', title: 'A slower hidden route continues underground', summary: 'Other water infiltrates soil and rock, then moves slowly through aquifers before returning to rivers or the sea.', details: 'Water can pass through soil pores and permeable rock, recharging aquifers. Groundwater often moves far more slowly than rivers, yet it steadily feeds springs, streams and coastal waters.', key: 'The water cycle connects atmosphere, surface water and groundwater into one system.' },
     ],
   },
 };
 
-const ui = createLessonShell(root, { steps: STEPS, duration: DURATION, canvasAriaLabel: 'Interactive water cycle explainer' });
+const ui = createStagePlayer(root, {
+  steps: STEPS,
+  duration: DURATION,
+  canvasAriaLabel: 'Continuous interactive water cycle explainer',
+});
+
 ui.overlay.innerHTML = `
-  <div id="water-evap" class="lesson-callout water-callout"><strong></strong><small></small></div>
-  <div id="water-cloud" class="lesson-callout water-callout"><strong></strong><small></small></div>
-  <div id="water-rain" class="lesson-callout water-callout"><strong></strong><small></small></div>
-  <div id="water-runoff" class="lesson-callout water-callout"><strong></strong><small></small></div>
-  <div id="water-ground" class="lesson-callout water-callout"><strong></strong><small></small></div>`;
-const callouts = ['#water-evap','#water-cloud','#water-rain','#water-runoff','#water-ground'].map(selector=>ui.overlay.querySelector<HTMLElement>(selector)!);
-const calloutCopy = {
-  zh: [['蒸发','液态水 → 水汽'],['水汽输送','风 + 抬升 + 冷却'],['降水','云滴长大后落下'],['地表径流','沿地形汇入河流'],['下渗与地下水','穿过土壤进入含水层']],
-  en: [['Evaporation','liquid → vapor'],['Vapor transport','wind + uplift + cooling'],['Precipitation','droplets grow and fall'],['Surface runoff','terrain routes water downhill'],['Groundwater','infiltration into aquifers']],
+  <div id="water-evap" class="story-callout water-callout"><strong></strong><small></small></div>
+  <div id="water-cloud" class="story-callout water-callout"><strong></strong><small></small></div>
+  <div id="water-rain" class="story-callout water-callout"><strong></strong><small></small></div>
+  <div id="water-runoff" class="story-callout water-callout"><strong></strong><small></small></div>
+  <div id="water-ground" class="story-callout water-callout"><strong></strong><small></small></div>
+  <div id="hero-drop-label" class="water-drop-label"></div>
+`;
+
+const callouts = [
+  get<HTMLElement>('#water-evap'),
+  get<HTMLElement>('#water-cloud'),
+  get<HTMLElement>('#water-rain'),
+  get<HTMLElement>('#water-runoff'),
+  get<HTMLElement>('#water-ground'),
+];
+const heroDropLabel = get<HTMLElement>('#hero-drop-label');
+
+const extraCopy = {
+  zh: {
+    hero: '同一滴水',
+    callouts: [
+      ['蒸发', '液态水 → 水汽'],
+      ['凝结', '水汽 → 云滴'],
+      ['降水', '重力把水带回地表'],
+      ['径流', '沿地形汇入河流'],
+      ['地下水', '更慢的隐藏回路'],
+    ],
+  },
+  en: {
+    hero: 'the same drop',
+    callouts: [
+      ['Evaporation', 'liquid → vapor'],
+      ['Condensation', 'vapor → cloud droplets'],
+      ['Precipitation', 'gravity returns water'],
+      ['Runoff', 'terrain routes water'],
+      ['Groundwater', 'the slower hidden route'],
+    ],
+  },
 } as const;
 
-const scene = new THREE.Scene(); scene.background = new THREE.Color('#08131d'); scene.fog = new THREE.FogExp2('#08131d',.018);
-const camera = new THREE.PerspectiveCamera(38,1,.1,100); const renderer = new THREE.WebGLRenderer({canvas:ui.canvas,antialias:true}); renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.outputColorSpace=THREE.SRGBColorSpace; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.05; renderer.shadowMap.enabled=true;
-scene.add(new THREE.HemisphereLight('#b8dcff','#263b2c',1.4)); const sunLight=new THREE.DirectionalLight('#fff2bf',3.6); sunLight.position.set(-7,10,4); sunLight.castShadow=true; scene.add(sunLight);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#08131b');
+scene.fog = new THREE.FogExp2('#08131b', 0.018);
 
-const ocean = new THREE.Mesh(new THREE.PlaneGeometry(14,8,40,20),new THREE.MeshStandardMaterial({color:'#146fb1',roughness:.34,metalness:.02,transparent:true,opacity:.94})); ocean.rotation.x=-Math.PI/2; ocean.position.set(-5,-2.15,1); scene.add(ocean);
-const oceanGlow = new THREE.Mesh(new THREE.PlaneGeometry(13.8,7.8),new THREE.MeshBasicMaterial({color:'#38a9ef',transparent:true,opacity:.1,blending:THREE.AdditiveBlending,depthWrite:false})); oceanGlow.rotation.x=-Math.PI/2; oceanGlow.position.set(-5,-2.1,1); scene.add(oceanGlow);
-const underground = new THREE.Mesh(new THREE.BoxGeometry(11,3.2,7),new THREE.MeshStandardMaterial({color:'#5d4635',roughness:1})); underground.position.set(4.7,-3.55,0); scene.add(underground);
-const soilTop = new THREE.Mesh(new THREE.BoxGeometry(11,.44,7),new THREE.MeshStandardMaterial({color:'#668f48',roughness:.95})); soilTop.position.set(4.7,-1.75,0); scene.add(soilTop);
-const coast = new THREE.Mesh(new THREE.BoxGeometry(2,.5,7),new THREE.MeshStandardMaterial({color:'#c9b484',roughness:1})); coast.position.set(-.3,-1.78,0); scene.add(coast);
+const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+const renderer = new THREE.WebGLRenderer({
+  canvas: ui.canvas,
+  antialias: true,
+  powerPreference: 'high-performance',
+});
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.04;
 
-const mountains = new THREE.Group(); scene.add(mountains); [[3.8,1.3,0,2.5,5.2],[5.5,1.1,-.8,2.1,4.4],[6.8,1.2,.4,1.75,3.7]].forEach(([x,z,y,r,h],i)=>{const mountain=new THREE.Mesh(new THREE.ConeGeometry(r,h,7),new THREE.MeshStandardMaterial({color:i===0?'#536b59':'#49614f',roughness:.96}));mountain.position.set(x,y+.4,z); mountain.rotation.y=.35*i; mountain.castShadow=true; mountains.add(mountain); const snow=new THREE.Mesh(new THREE.ConeGeometry(r*.42,h*.23,7),new THREE.MeshStandardMaterial({color:'#d9e8ee',roughness:.8}));snow.position.set(x,y+h*.5+.05,z);snow.rotation.y=mountain.rotation.y;mountains.add(snow)});
+scene.add(new THREE.HemisphereLight('#c5e3ff', '#24362a', 1.45));
+const sunlight = new THREE.DirectionalLight('#fff0bd', 3.2);
+sunlight.position.set(-7, 10, 5);
+scene.add(sunlight);
 
-const riverCurve = new THREE.CatmullRomCurve3([v(4.8,-.9,-.3),v(3.7,-1.35,-.1),v(2.4,-1.6,.35),v(1.2,-1.7,.1),v(.1,-1.82,.45),v(-1.4,-2.0,.6)]);
-const river = new THREE.Mesh(new THREE.TubeGeometry(riverCurve,90,.13,10,false),new THREE.MeshBasicMaterial({color:'#3cb5ff',transparent:true,opacity:.18,blending:THREE.AdditiveBlending})); scene.add(river);
-const groundwaterCurve = new THREE.CatmullRomCurve3([v(5.8,-2.7,1),v(4.4,-3.25,.7),v(2.7,-3.4,.4),v(1,-3.25,.6),v(-.8,-2.9,.8)]);
-const groundwater = new THREE.Mesh(new THREE.TubeGeometry(groundwaterCurve,80,.11,10,false),new THREE.MeshBasicMaterial({color:'#38aaff',transparent:true,opacity:.04,blending:THREE.AdditiveBlending})); scene.add(groundwater);
-const sun = new THREE.Mesh(new THREE.SphereGeometry(.72,40,40),new THREE.MeshBasicMaterial({color:'#ffd96b'})); sun.position.set(-6,5,-3); scene.add(sun); const sunHalo=new THREE.Sprite(new THREE.SpriteMaterial({map:radialTexture('#ffd86d'),transparent:true,opacity:.5,blending:THREE.AdditiveBlending,depthWrite:false})); sunHalo.position.copy(sun.position);sunHalo.scale.set(4,4,1);scene.add(sunHalo);
-const cloud = new THREE.Group(); scene.add(cloud); [[0,0,0,1.15],[1,.1,0,.95],[-1,.05,.1,.85],[.4,.55,-.1,.8],[-.45,.55,.05,.75]].forEach(([x,y,z,s])=>{const p=new THREE.Mesh(new THREE.SphereGeometry(s,28,20),new THREE.MeshStandardMaterial({color:'#dce7ee',roughness:.96,transparent:true,opacity:.86}));p.position.set(x,y,z);cloud.add(p)}); cloud.position.set(3.3,4.1,0);
-const vapor = makeParticles(24,'#6dc9ff',.075); const rain = makeParticles(42,'#74c7ff',.045); const infiltrate = makeParticles(18,'#47aef5',.055); const runoffDots = makeParticles(16,'#4cbcff',.065); const groundwaterDots = makeParticles(14,'#3bafff',.06);
+const ocean = new THREE.Mesh(
+  new THREE.PlaneGeometry(14, 8),
+  new THREE.MeshStandardMaterial({ color: '#126ca8', roughness: 0.38, metalness: 0.03 }),
+);
+ocean.rotation.x = -Math.PI / 2;
+ocean.position.set(-5, -2.12, 1);
+scene.add(ocean);
 
-function renderScene(time:number){
-  resize(); const step=ui.renderStep(time,copy[language]); ui.renderTime(time);
-  const evap=easeInOutCubic(stepProgressAt(STEPS[0],time)), transport=easeInOutCubic(stepProgressAt(STEPS[1],time)), precip=easeInOutCubic(stepProgressAt(STEPS[2],time)), runoff=easeInOutCubic(stepProgressAt(STEPS[3],time)), ground=easeInOutCubic(stepProgressAt(STEPS[4],time));
-  const oceanWave=Math.sin(time*.8)*.012; ocean.position.y=-2.15+oceanWave; oceanGlow.position.y=-2.1+oceanWave; sunHalo.scale.setScalar(3.8+evap*.55+Math.sin(time*.6)*.08); sunLight.intensity=3.2+evap*.8;
-  cloud.position.x=lerp(1.1,3.3,transport); cloud.position.y=lerp(4.5,3.65,transport); cloud.scale.setScalar(.82+transport*.28+precip*.12); cloud.children.forEach(child=>{const mat=(child as THREE.Mesh).material as THREE.MeshStandardMaterial;mat.color.set(precip>0?'#aebdca':'#dce7ee');mat.opacity=.7+transport*.18});
-  vapor.forEach((dot,index)=>{const p=(time*.35+index/24)%1;dot.visible=step<=1;dot.position.set(-5.2+(index%6)*.5,lerp(-1.85,3.4,p)+Math.sin(index*1.7+time)*.12,1+(index%4)*.18);dot.scale.setScalar(.7+p*.7);(dot.material as THREE.MeshBasicMaterial).opacity=(1-p)*(.15+.6*Math.max(evap,transport*.8))});
-  rain.forEach((dot,index)=>{const p=(time*.55+index/42)%1;dot.visible=step===2||step===3;dot.position.set(2.1+(index%9)*.38,lerp(3.2,-1.45,p),-.8+(index%6)*.32);(dot.material as THREE.MeshBasicMaterial).opacity=precip*(.25+.75*(1-p))});
-  (river.material as THREE.MeshBasicMaterial).opacity=.16+runoff*.82+ground*.18; runoffDots.forEach((dot,index)=>{const p=(runoff*.15+time*.22+index/16)%1;dot.visible=step>=3;dot.position.copy(riverCurve.getPoint(p));(dot.material as THREE.MeshBasicMaterial).opacity=.28+runoff*.7});
-  infiltrate.forEach((dot,index)=>{const p=(time*.38+index/18)%1;dot.visible=step===4;dot.position.set(2+(index%6)*.72,lerp(-1.55,-3.15,p),-.5+(index%4)*.42);(dot.material as THREE.MeshBasicMaterial).opacity=ground*(.2+.7*(1-p))});
-  (groundwater.material as THREE.MeshBasicMaterial).opacity=.04+ground*.8; groundwaterDots.forEach((dot,index)=>{const p=(time*.15+index/14)%1;dot.visible=step===4;dot.position.copy(groundwaterCurve.getPoint(p));(dot.material as THREE.MeshBasicMaterial).opacity=ground*(.25+.7*Math.sin(Math.PI*p))});
-  const cameraTargets=[v(0,2.2,14.8),v(.8,2.5,14),v(1.8,2.5,13.4),v(1.4,1.4,13.2),v(1,-.2,12.4)]; const lookTargets=[v(0,0,0),v(.6,.4,0),v(2,.6,0),v(1,-.5,0),v(1,-1.6,0)]; const local=easeInOutCubic(stepProgressAt(STEPS[step],time)); camera.position.copy(lerpV(cameraTargets[step],cameraTargets[Math.min(4,step+1)],local*.36));camera.lookAt(lerpV(lookTargets[step],lookTargets[Math.min(4,step+1)],local*.36));
-  renderer.render(scene,camera); updateCallouts(step,evap,transport,precip,runoff,ground);
+const oceanGlow = new THREE.Mesh(
+  new THREE.PlaneGeometry(13.7, 7.7),
+  new THREE.MeshBasicMaterial({ color: '#37a9ef', transparent: true, opacity: 0.09, blending: THREE.AdditiveBlending, depthWrite: false }),
+);
+oceanGlow.rotation.x = -Math.PI / 2;
+oceanGlow.position.set(-5, -2.08, 1);
+scene.add(oceanGlow);
+
+const underground = new THREE.Mesh(
+  new THREE.BoxGeometry(11, 3.3, 7),
+  new THREE.MeshStandardMaterial({ color: '#514237', roughness: 1 }),
+);
+underground.position.set(4.7, -3.6, 0);
+scene.add(underground);
+
+const soilTop = new THREE.Mesh(
+  new THREE.BoxGeometry(11, 0.5, 7),
+  new THREE.MeshStandardMaterial({ color: '#64804b', roughness: 0.95 }),
+);
+soilTop.position.set(4.7, -1.72, 0);
+scene.add(soilTop);
+
+const coast = new THREE.Mesh(
+  new THREE.BoxGeometry(2.2, 0.52, 7),
+  new THREE.MeshStandardMaterial({ color: '#b9a77d', roughness: 0.98 }),
+);
+coast.position.set(-0.25, -1.78, 0);
+scene.add(coast);
+
+const mountains = new THREE.Group();
+scene.add(mountains);
+[
+  [3.8, 0, 1.3, 2.5, 5.2],
+  [5.5, -0.8, 1.1, 2.1, 4.4],
+  [6.9, 0.55, 1.2, 1.75, 3.7],
+].forEach(([x, z, y, radius, height], index) => {
+  const mountain = new THREE.Mesh(
+    new THREE.ConeGeometry(radius, height, 8),
+    new THREE.MeshStandardMaterial({ color: index === 0 ? '#526b58' : '#445d4c', roughness: 0.98 }),
+  );
+  mountain.position.set(x, y + 0.35, z);
+  mountain.rotation.y = index * 0.27;
+  mountains.add(mountain);
+
+  const snow = new THREE.Mesh(
+    new THREE.ConeGeometry(radius * 0.42, height * 0.23, 8),
+    new THREE.MeshStandardMaterial({ color: '#dce8ea', roughness: 0.84 }),
+  );
+  snow.position.set(x, y + height * 0.5 + 0.04, z);
+  snow.rotation.y = mountain.rotation.y;
+  mountains.add(snow);
+});
+
+const riverCurve = new THREE.CatmullRomCurve3([
+  v(4.85, -0.85, -0.2),
+  v(3.7, -1.26, -0.08),
+  v(2.55, -1.54, 0.28),
+  v(1.25, -1.66, 0.12),
+  v(0.05, -1.8, 0.46),
+  v(-1.35, -1.98, 0.62),
+], false, 'centripetal');
+const river = new THREE.Mesh(
+  new THREE.TubeGeometry(riverCurve, 96, 0.14, 10, false),
+  new THREE.MeshBasicMaterial({ color: '#3bb5ff', transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false }),
+);
+scene.add(river);
+
+const groundwaterCurve = new THREE.CatmullRomCurve3([
+  v(5.45, -2.05, 0.6),
+  v(4.8, -2.8, 0.7),
+  v(3.3, -3.3, 0.5),
+  v(1.7, -3.35, 0.6),
+  v(0.15, -3.08, 0.78),
+  v(-1.1, -2.65, 0.82),
+], false, 'centripetal');
+const groundwater = new THREE.Mesh(
+  new THREE.TubeGeometry(groundwaterCurve, 90, 0.105, 10, false),
+  new THREE.MeshBasicMaterial({ color: '#36aaff', transparent: true, opacity: 0.035, blending: THREE.AdditiveBlending, depthWrite: false }),
+);
+scene.add(groundwater);
+
+const sun = new THREE.Mesh(
+  new THREE.SphereGeometry(0.72, 36, 36),
+  new THREE.MeshBasicMaterial({ color: '#ffd96b' }),
+);
+sun.position.set(-6, 5, -3);
+scene.add(sun);
+const sunHalo = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: radialTexture('#ffd86d'),
+  transparent: true,
+  opacity: 0.46,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
+}));
+sunHalo.position.copy(sun.position);
+sunHalo.scale.set(4, 4, 1);
+scene.add(sunHalo);
+
+const cloud = new THREE.Group();
+scene.add(cloud);
+[
+  [0, 0, 0, 1.12], [1, 0.08, 0, 0.92], [-0.96, 0.06, 0.08, 0.82],
+  [0.36, 0.52, -0.1, 0.78], [-0.42, 0.5, 0.05, 0.72],
+].forEach(([x, y, z, scale]) => {
+  const puff = new THREE.Mesh(
+    new THREE.SphereGeometry(scale, 24, 18),
+    new THREE.MeshStandardMaterial({ color: '#dce7ee', roughness: 0.97, transparent: true, opacity: 0.8 }),
+  );
+  puff.position.set(x, y, z);
+  cloud.add(puff);
+});
+cloud.position.set(1.0, 4.35, 0);
+
+const vaporPath = new THREE.CatmullRomCurve3([
+  v(-5.0, -1.82, 1.0), v(-4.5, 0.1, 0.95), v(-3.3, 2.2, 0.75), v(-1.6, 3.25, 0.45),
+], false, 'centripetal');
+const transportPath = new THREE.CatmullRomCurve3([
+  v(-1.8, 3.2, 0.4), v(-0.2, 3.65, 0.2), v(1.5, 3.8, 0.05), v(3.25, 3.68, 0),
+], false, 'centripetal');
+
+const vaporField = createPointField(54, '#76d2ff', 0.09);
+const transportField = createPointField(46, '#99dbff', 0.075);
+const rainField = createPointField(64, '#73c9ff', 0.055);
+const runoffField = createPointField(42, '#4fc0ff', 0.07);
+const groundwaterField = createPointField(34, '#4db9ff', 0.065);
+
+const heroCurve = new THREE.CatmullRomCurve3([
+  v(-5.1, -1.76, 1.05),
+  v(-3.15, 2.5, 0.75),
+  v(3.15, 3.72, 0.05),
+  v(4.85, -1.22, -0.12),
+  v(1.7, -1.62, 0.38),
+  v(-1.2, -1.95, 0.62),
+], false, 'centripetal', 0.45);
+const heroDrop = new THREE.Mesh(
+  new THREE.SphereGeometry(0.105, 16, 16),
+  new THREE.MeshBasicMaterial({ color: '#e3f8ff' }),
+);
+scene.add(heroDrop);
+const heroGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: radialTexture('#66caff'), transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false,
+}));
+heroGlow.scale.set(0.8, 0.8, 1);
+scene.add(heroGlow);
+
+const branchDrop = new THREE.Mesh(
+  new THREE.SphereGeometry(0.085, 14, 14),
+  new THREE.MeshBasicMaterial({ color: '#8edbff', transparent: true, opacity: 0 }),
+);
+scene.add(branchDrop);
+const branchGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: radialTexture('#44b8ff'), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
+}));
+branchGlow.scale.set(0.62, 0.62, 1);
+scene.add(branchGlow);
+
+const cameraCurve = new THREE.CatmullRomCurve3([
+  v(0.0, 2.4, 15.2),
+  v(0.3, 2.8, 14.6),
+  v(1.25, 2.95, 14.0),
+  v(1.7, 2.3, 13.5),
+  v(1.25, 1.5, 13.2),
+  v(0.8, -0.05, 12.5),
+], false, 'centripetal', 0.4);
+const lookCurve = new THREE.CatmullRomCurve3([
+  v(0, 0.3, 0),
+  v(0.4, 0.55, 0),
+  v(1.4, 0.65, 0),
+  v(1.7, -0.2, 0),
+  v(1.2, -0.7, 0),
+  v(0.7, -1.5, 0),
+], false, 'centripetal', 0.4);
+
+const viewport = observeRendererViewport(renderer, camera, ui.stage, { maxPixelRatio: 1.5 });
+
+const calloutWorld = [
+  v(-4.3, 0.65, 1.0),
+  v(2.55, 3.65, 0),
+  v(4.45, 1.45, -0.2),
+  v(2.45, -1.15, 0.18),
+  v(2.35, -2.78, 0.55),
+];
+const tmpProjected = new THREE.Vector3();
+
+function renderScene(time: number) {
+  const evaporation = envelope(time, 0.15, 1.25, 8.8, 10.8);
+  const transport = envelope(time, 3.4, 5.6, 12.0, 14.1);
+  const precipitation = envelope(time, 8.6, 10.7, 16.8, 18.7);
+  const runoff = envelope(time, 13.2, 15.4, 22.3, 24.6);
+  const groundwaterFlow = reveal(time, 17.4, 20.5);
+
+  const oceanWave = Math.sin(time * 0.72) * 0.013;
+  ocean.position.y = -2.12 + oceanWave;
+  oceanGlow.position.y = -2.08 + oceanWave;
+  (oceanGlow.material as THREE.MeshBasicMaterial).opacity = 0.075 + evaporation * 0.07;
+  sunHalo.scale.setScalar(3.8 + evaporation * 0.5 + Math.sin(time * 0.55) * 0.08);
+  sunlight.intensity = 3.0 + evaporation * 0.75;
+
+  const cloudTravel = reveal(time, 2.8, 9.4);
+  cloud.position.x = THREE.MathUtils.lerp(0.9, 3.25, cloudTravel);
+  cloud.position.y = THREE.MathUtils.lerp(4.35, 3.7, cloudTravel);
+  const cloudDensity = Math.min(1, transport * 0.8 + precipitation * 0.65);
+  cloud.scale.setScalar(0.84 + cloudDensity * 0.28);
+  cloud.children.forEach((child) => {
+    const material = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+    material.color.setRGB(
+      THREE.MathUtils.lerp(0.86, 0.62, precipitation * 0.55),
+      THREE.MathUtils.lerp(0.91, 0.69, precipitation * 0.55),
+      THREE.MathUtils.lerp(0.94, 0.76, precipitation * 0.55),
+    );
+    material.opacity = 0.62 + cloudDensity * 0.26;
+  });
+
+  updateCurveField(vaporField, vaporPath, time * 0.115, 0.82, evaporation, (index, point) => {
+    point.x += ((index % 7) - 3) * 0.055;
+    point.z += ((index % 5) - 2) * 0.04;
+  });
+  updateCurveField(transportField, transportPath, time * 0.082, 0.95, transport, (index, point) => {
+    point.y += Math.sin(index * 1.7 + time * 0.7) * 0.08;
+    point.z += ((index % 6) - 2.5) * 0.045;
+  });
+  updateRainField(rainField, time, precipitation);
+  updateCurveField(runoffField, riverCurve, time * 0.105, 1, runoff);
+  updateCurveField(groundwaterField, groundwaterCurve, time * 0.063, 1, groundwaterFlow);
+
+  (river.material as THREE.MeshBasicMaterial).opacity = 0.16 + runoff * 0.74 + groundwaterFlow * 0.08;
+  (groundwater.material as THREE.MeshBasicMaterial).opacity = 0.03 + groundwaterFlow * 0.72;
+
+  const heroProgress = Math.min(1, Math.max(0, time / DURATION));
+  heroCurve.getPointAt(heroProgress, heroDrop.position);
+  heroGlow.position.copy(heroDrop.position);
+  const heroPulse = 0.72 + Math.sin(time * 4.2) * 0.08;
+  heroGlow.scale.set(heroPulse, heroPulse, 1);
+
+  const branch = reveal(time, 19.2, 21.0);
+  const branchProgress = Math.min(1, Math.max(0, (time - 19.2) / 5.8));
+  groundwaterCurve.getPointAt(branchProgress, branchDrop.position);
+  branchGlow.position.copy(branchDrop.position);
+  (branchDrop.material as THREE.MeshBasicMaterial).opacity = branch * 0.9;
+  (branchGlow.material as THREE.SpriteMaterial).opacity = branch * 0.5;
+
+  const cameraProgress = Math.min(1, Math.max(0, time / DURATION));
+  cameraCurve.getPointAt(cameraProgress, camera.position);
+  const lookAt = lookCurve.getPointAt(cameraProgress);
+  camera.lookAt(lookAt);
+
+  renderer.render(scene, camera);
+
+  updateCallout(callouts[0], calloutWorld[0], evaporation, 10, -8);
+  updateCallout(callouts[1], calloutWorld[1], transport, 10, -6);
+  updateCallout(callouts[2], calloutWorld[2], precipitation, 10, -6);
+  updateCallout(callouts[3], calloutWorld[3], runoff, 10, -6);
+  updateCallout(callouts[4], calloutWorld[4], groundwaterFlow, 10, -6);
+  updateCallout(heroDropLabel, heroDrop.position, 0.88, 12, -16);
 }
 
-const controller=new DeterministicTimeline({duration:DURATION,steps:STEPS,qaTimes:[0,4.7,5.3,9.7,10.4,14.7,15.4,19.7,20.5,24.8],onRender:renderScene,onPlayStateChange(value){playing=value;ui.setPlaying(value,copy[language])}});window.__LOOP_ANIMATION__=controller;ui.bindController(controller);ui.playButton.addEventListener('click',()=>playing?controller.pause():controller.play());ui.languageButton.addEventListener('click',()=>{language=language==='zh'?'en':'zh';persistLanguage(language);const url=new URL(location.href);url.searchParams.set('lang',language);history.replaceState({},'',url);applyCopy();controller.renderAt(controller.currentTime)});addEventListener('resize',()=>controller.renderAt(controller.currentTime));
-applyCopy();controller.renderAt(0);
+const controller = new DeterministicTimeline({
+  duration: DURATION,
+  steps: STEPS,
+  onRender: renderScene,
+});
+window.__LOOP_ANIMATION__ = controller;
 
-function applyCopy(){ui.applyCopy(copy[language],language,playing);calloutCopy[language].forEach((entry,index)=>{callouts[index].querySelector('strong')!.textContent=entry[0];callouts[index].querySelector('small')!.textContent=entry[1]})}
-function updateCallouts(step:number,a:number,b:number,c:number,d:number,e:number){const op=[a,b,c,d,e];const points=[v(-4.3,.4,1),v(2.3,3.5,0),v(4.3,1.8,0),v(2.5,-.9,.2),v(2.3,-2.75,.5)];callouts.forEach((el,index)=>projectPoint(points[index],el,index===step?Math.max(.45,op[index]):op[index]*.22,12,-6))}
-function resize(){const w=ui.canvas.clientWidth,h=ui.canvas.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/Math.max(1,h);camera.updateProjectionMatrix()}
-function makeParticles(count:number,color:string,size:number){return Array.from({length:count},()=>{const dot=new THREE.Mesh(new THREE.SphereGeometry(size,10,10),new THREE.MeshBasicMaterial({color,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));scene.add(dot);return dot})}
-function projectPoint(world:THREE.Vector3,element:HTMLElement,opacity:number,x=0,y=0){const p=world.clone().project(camera);element.style.transform=`translate(${(p.x*.5+.5)*ui.canvas.clientWidth+x}px,${(-p.y*.5+.5)*ui.canvas.clientHeight+y}px)`;element.style.opacity=String(Math.max(0,Math.min(1,opacity)))}
-function radialTexture(color:string){const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d')!;const g=ctx.createRadialGradient(128,128,10,128,128,128);g.addColorStop(0,color);g.addColorStop(.2,color);g.addColorStop(1,'rgba(255,255,255,0)');ctx.fillStyle=g;ctx.fillRect(0,0,256,256);return new THREE.CanvasTexture(c)}
-function v(x:number,y:number,z:number){return new THREE.Vector3(x,y,z)}function lerpV(a:THREE.Vector3,b:THREE.Vector3,t:number){return v(lerp(a.x,b.x,t),lerp(a.y,b.y,t),lerp(a.z,b.z,t))}
+ui.applyCopy(copy[language], language);
+applyOverlayCopy();
+ui.bindController(controller);
+
+ui.languageButton.addEventListener('click', () => {
+  language = language === 'zh' ? 'en' : 'zh';
+  persistLanguage(language);
+  const url = new URL(window.location.href);
+  url.searchParams.set('lang', language);
+  history.replaceState({}, '', url);
+  ui.applyCopy(copy[language], language);
+  applyOverlayCopy();
+  controller.renderAt(controller.currentTime);
+});
+
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'ArrowRight') controller.nextStep();
+  if (event.key === 'ArrowLeft') controller.previousStep();
+  if (event.key === ' ') {
+    event.preventDefault();
+    controller.isPlaying ? controller.pause() : controller.play();
+  }
+});
+
+function applyOverlayCopy() {
+  const current = extraCopy[language];
+  heroDropLabel.textContent = current.hero;
+  current.callouts.forEach((entry, index) => {
+    const strong = callouts[index].querySelector('strong');
+    const small = callouts[index].querySelector('small');
+    if (strong) strong.textContent = entry[0];
+    if (small) small.textContent = entry[1];
+  });
+}
+
+function createPointField(count: number, color: string, size: number) {
+  const positions = new Float32Array(count * 3);
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const material = new THREE.PointsMaterial({
+    color,
+    size,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    sizeAttenuation: true,
+  });
+  const points = new THREE.Points(geometry, material);
+  scene.add(points);
+  return { count, positions, geometry, material, points };
+}
+
+type PointField = ReturnType<typeof createPointField>;
+
+function updateCurveField(
+  field: PointField,
+  curve: THREE.Curve<THREE.Vector3>,
+  offset: number,
+  spread: number,
+  opacity: number,
+  mutate?: (index: number, point: THREE.Vector3) => void,
+) {
+  const point = new THREE.Vector3();
+  for (let index = 0; index < field.count; index += 1) {
+    const phase = fract(offset + (index / field.count) * spread);
+    curve.getPointAt(phase, point);
+    mutate?.(index, point);
+    field.positions[index * 3] = point.x;
+    field.positions[index * 3 + 1] = point.y;
+    field.positions[index * 3 + 2] = point.z;
+  }
+  field.geometry.attributes.position.needsUpdate = true;
+  field.material.opacity = opacity * 0.72;
+}
+
+function updateRainField(field: PointField, time: number, opacity: number) {
+  for (let index = 0; index < field.count; index += 1) {
+    const phase = fract(time * 0.18 + index / field.count);
+    const x = 2.25 + (index % 11) * 0.28;
+    const y = THREE.MathUtils.lerp(3.15, -1.48, phase);
+    const z = -0.9 + (index % 7) * 0.27;
+    field.positions[index * 3] = x;
+    field.positions[index * 3 + 1] = y;
+    field.positions[index * 3 + 2] = z;
+  }
+  field.geometry.attributes.position.needsUpdate = true;
+  field.material.opacity = opacity * 0.78;
+}
+
+function updateCallout(element: HTMLElement, world: THREE.Vector3, opacity: number, offsetX = 0, offsetY = 0) {
+  tmpProjected.copy(world).project(camera);
+  const behind = tmpProjected.z > 1;
+  const x = (tmpProjected.x * 0.5 + 0.5) * viewport.width + offsetX;
+  const y = (-tmpProjected.y * 0.5 + 0.5) * viewport.height + offsetY;
+  element.style.transform = `translate(${x}px, ${y}px)`;
+  element.style.opacity = String(behind ? 0 : Math.min(1, Math.max(0, opacity)));
+}
+
+function radialTexture(color: string) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 256;
+  const context = canvas.getContext('2d')!;
+  const gradient = context.createRadialGradient(128, 128, 8, 128, 128, 126);
+  gradient.addColorStop(0, color);
+  gradient.addColorStop(0.22, color);
+  gradient.addColorStop(1, 'rgba(255,255,255,0)');
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, 256, 256);
+  return new THREE.CanvasTexture(canvas);
+}
+
+function fract(value: number) {
+  return value - Math.floor(value);
+}
+
+function v(x: number, y: number, z: number) {
+  return new THREE.Vector3(x, y, z);
+}
+
+function get<T extends Element>(selector: string): T {
+  const element = document.querySelector<T>(selector);
+  if (!element) throw new Error(`Missing ${selector}`);
+  return element;
+}
