@@ -41,6 +41,8 @@ export interface StagePlayer {
   dispose(): void;
 }
 
+const PLAYER_HINT_KEY = 'loop-animation:player-hint:v1';
+
 export function createStagePlayer(root: HTMLDivElement, options: StagePlayerOptions): StagePlayer {
   const total = options.steps.length;
   const weights = options.steps.map((step) => Math.max(0.001, step.end - step.start));
@@ -64,7 +66,10 @@ export function createStagePlayer(root: HTMLDivElement, options: StagePlayerOpti
             <strong id="story-topic-title"></strong>
             <span id="story-topic-lead"></span>
           </div>
-          <button id="story-language" class="story-language" type="button"></button>
+          <div class="story-header-actions" data-export-hide>
+            <button id="story-fullscreen" class="story-icon-button" type="button" aria-label="Fullscreen" title="Fullscreen">⛶</button>
+            <button id="story-language" class="story-language" type="button"></button>
+          </div>
         </header>
 
         <section id="story-caption" class="story-caption" aria-live="polite">
@@ -75,10 +80,10 @@ export function createStagePlayer(root: HTMLDivElement, options: StagePlayerOpti
           </div>
           <h1 id="story-chapter-title"></h1>
           <p id="story-chapter-summary"></p>
-          <button id="story-details-button" class="story-details-button" type="button"></button>
+          <button id="story-details-button" class="story-details-button" type="button" aria-expanded="false" aria-controls="story-details"></button>
         </section>
 
-        <aside id="story-details" class="story-details" aria-hidden="true">
+        <aside id="story-details" class="story-details" role="dialog" aria-modal="false" aria-labelledby="story-details-title" aria-hidden="true">
           <button id="story-details-close" class="story-details-close" type="button" aria-label="Close">×</button>
           <span id="story-details-label" class="story-details-label"></span>
           <h2 id="story-details-title"></h2>
@@ -88,6 +93,11 @@ export function createStagePlayer(root: HTMLDivElement, options: StagePlayerOpti
             <strong id="story-key"></strong>
           </div>
         </aside>
+
+        <div id="story-usage-hint" class="story-usage-hint" data-export-hide aria-hidden="true">
+          <span id="story-usage-hint-text"></span>
+          <button id="story-usage-dismiss" type="button" aria-label="Dismiss">×</button>
+        </div>
 
         <footer class="story-controls" data-export-hide>
           <div class="story-transport">
@@ -102,7 +112,7 @@ export function createStagePlayer(root: HTMLDivElement, options: StagePlayerOpti
             </div>
             <div class="story-chapters">
               ${options.steps.map((step, index) => `
-                <button type="button" class="story-chapter-button" data-chapter="${index}" style="--chapter-weight:${weights[index]}">
+                <button type="button" class="story-chapter-button" data-chapter="${index}" style="--chapter-weight:${weights[index]}" aria-label="${escapeHtml(step.id)}">
                   <span>${String(index + 1).padStart(2, '0')}</span>
                   <strong>${escapeHtml(step.id)}</strong>
                 </button>
@@ -110,16 +120,23 @@ export function createStagePlayer(root: HTMLDivElement, options: StagePlayerOpti
             </div>
           </div>
 
-          <time id="story-time">0.0s</time>
+          <time id="story-time">0.0 / ${options.duration.toFixed(1)}s</time>
         </footer>
       </main>
     </div>
   `;
 
+  const get = <T extends Element>(selector: string): T => {
+    const element = root.querySelector<T>(selector);
+    if (!element) throw new Error(`Missing ${selector}`);
+    return element;
+  };
+
   const stage = get<HTMLElement>('#story-stage');
   const canvas = get<HTMLCanvasElement>('#story-canvas');
   const overlay = get<HTMLDivElement>('#story-overlay');
   const languageButton = get<HTMLButtonElement>('#story-language');
+  const fullscreenButton = get<HTMLButtonElement>('#story-fullscreen');
   const detailsButton = get<HTMLButtonElement>('#story-details-button');
   const detailsPanel = get<HTMLElement>('#story-details');
   const detailsClose = get<HTMLButtonElement>('#story-details-close');
@@ -131,6 +148,9 @@ export function createStagePlayer(root: HTMLDivElement, options: StagePlayerOpti
   const timeLabel = get<HTMLTimeElement>('#story-time');
   const caption = get<HTMLElement>('#story-caption');
   const chapterButtons = [...root.querySelectorAll<HTMLButtonElement>('.story-chapter-button')];
+  const usageHint = get<HTMLElement>('#story-usage-hint');
+  const usageHintText = get<HTMLElement>('#story-usage-hint-text');
+  const usageDismiss = get<HTMLButtonElement>('#story-usage-dismiss');
 
   const brand = get<HTMLElement>('#story-brand');
   const category = get<HTMLElement>('#story-category');
@@ -147,15 +167,38 @@ export function createStagePlayer(root: HTMLDivElement, options: StagePlayerOpti
   const key = get<HTMLElement>('#story-key');
 
   let currentCopy: StagePlayerCopy | null = null;
+  let currentLanguage: AppLanguage = 'en';
   let lastChapter = -1;
   let lastTimeLabel = Number.NEGATIVE_INFINITY;
   let unsubscribe: (() => void) | null = null;
   let controllerRef: LoopAnimationController | null = null;
   let detailsOpen = false;
   let draggingTimeline = false;
+  let detailsReturnFocus: HTMLElement | null = null;
+  let usageHintTimer: number | null = null;
+
+  function localizedUi(language: AppLanguage) {
+    return language === 'zh'
+      ? {
+          timeline: '动画时间轴',
+          fullscreen: '进入全屏',
+          exitFullscreen: '退出全屏',
+          usage: '空格 播放/暂停 · 拖动时间轴 · 点击章节跳转 · “深入解释”看详情',
+          dismiss: '知道了',
+        }
+      : {
+          timeline: 'Animation timeline',
+          fullscreen: 'Enter fullscreen',
+          exitFullscreen: 'Exit fullscreen',
+          usage: 'Space play/pause · drag the timeline · click chapters · use “Go deeper” for details',
+          dismiss: 'Got it',
+        };
+  }
 
   function applyCopy(copy: StagePlayerCopy, language: AppLanguage) {
     currentCopy = copy;
+    currentLanguage = language;
+    const uiCopy = localizedUi(language);
     document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en';
     window.__LOOP_STORY__ = buildStoryManifest({
       language,
@@ -172,17 +215,28 @@ export function createStagePlayer(root: HTMLDivElement, options: StagePlayerOpti
     languageButton.textContent = copy.language;
     detailsButton.textContent = copy.details;
     detailsClose.title = copy.closeDetails;
+    detailsClose.setAttribute('aria-label', copy.closeDetails);
     keyWord.textContent = copy.keyWord;
     previousButton.title = copy.previous;
+    previousButton.setAttribute('aria-label', copy.previous);
     nextButton.title = copy.next;
+    nextButton.setAttribute('aria-label', copy.next);
+    lineTrack.setAttribute('aria-label', uiCopy.timeline);
+    usageHintText.textContent = uiCopy.usage;
+    usageDismiss.title = uiCopy.dismiss;
+    usageDismiss.setAttribute('aria-label', uiCopy.dismiss);
+    updateFullscreenCopy();
 
     copy.chapters.forEach((chapter, index) => {
-      const label = chapterButtons[index]?.querySelector('strong');
+      const button = chapterButtons[index];
+      const label = button?.querySelector('strong');
       if (label) label.textContent = chapter.label;
+      button?.setAttribute('aria-label', `${String(index + 1).padStart(2, '0')} · ${chapter.label}`);
     });
 
     lastChapter = -1;
     renderAt(controllerRef?.currentTime ?? 0);
+    maybeShowUsageHint();
   }
 
   function renderChapter(index: number) {
@@ -200,8 +254,11 @@ export function createStagePlayer(root: HTMLDivElement, options: StagePlayerOpti
     key.textContent = chapter.key;
 
     chapterButtons.forEach((button, buttonIndex) => {
-      button.classList.toggle('is-active', buttonIndex === index);
+      const active = buttonIndex === index;
+      button.classList.toggle('is-active', active);
       button.classList.toggle('is-past', buttonIndex < index);
+      if (active) button.setAttribute('aria-current', 'step');
+      else button.removeAttribute('aria-current');
     });
 
     previousButton.disabled = index === 0;
@@ -222,9 +279,10 @@ export function createStagePlayer(root: HTMLDivElement, options: StagePlayerOpti
     const progress = Math.min(1, Math.max(0, time / options.duration));
     line.style.setProperty('--story-progress', String(progress));
     lineTrack.setAttribute('aria-valuenow', time.toFixed(2));
+    lineTrack.setAttribute('aria-valuetext', `${time.toFixed(1)}s · ${currentCopy.chapters[index]?.label ?? ''}`);
 
     if (Math.abs(time - lastTimeLabel) >= 0.1 || time === 0 || time >= options.duration) {
-      timeLabel.textContent = `${time.toFixed(1)}s`;
+      timeLabel.textContent = `${time.toFixed(1)} / ${options.duration.toFixed(1)}s`;
       lastTimeLabel = time;
     }
   }
@@ -241,11 +299,6 @@ export function createStagePlayer(root: HTMLDivElement, options: StagePlayerOpti
     controllerRef = controller;
     unsubscribe?.();
     unsubscribe = controller.subscribe?.(renderSnapshot) ?? null;
-
-    chapterButtons.forEach((button, index) => button.addEventListener('click', () => controller.goToStep?.(index)));
-    previousButton.addEventListener('click', () => controller.previousStep?.());
-    nextButton.addEventListener('click', () => controller.nextStep?.());
-    playButton.addEventListener('click', () => controller.isPlaying ? controller.pause() : controller.play());
   }
 
   function seekFromPointer(clientX: number) {
@@ -255,7 +308,26 @@ export function createStagePlayer(root: HTMLDivElement, options: StagePlayerOpti
     controllerRef.seek(ratio * options.duration);
   }
 
+  chapterButtons.forEach((button, index) => button.addEventListener('click', () => {
+    dismissUsageHint(true);
+    controllerRef?.goToStep?.(index);
+  }));
+  previousButton.addEventListener('click', () => {
+    dismissUsageHint(true);
+    controllerRef?.previousStep?.();
+  });
+  nextButton.addEventListener('click', () => {
+    dismissUsageHint(true);
+    controllerRef?.nextStep?.();
+  });
+  playButton.addEventListener('click', () => {
+    dismissUsageHint(true);
+    if (!controllerRef) return;
+    controllerRef.isPlaying ? controllerRef.pause() : controllerRef.play();
+  });
+
   lineTrack.addEventListener('pointerdown', (event) => {
+    dismissUsageHint(true);
     draggingTimeline = true;
     lineTrack.setPointerCapture(event.pointerId);
     seekFromPointer(event.clientX);
@@ -273,14 +345,20 @@ export function createStagePlayer(root: HTMLDivElement, options: StagePlayerOpti
     const jump = event.shiftKey ? 1 : 0.25;
     if (event.key === 'ArrowRight') {
       event.preventDefault();
+      dismissUsageHint(true);
       controllerRef.seek(Math.min(options.duration, controllerRef.currentTime + jump));
     } else if (event.key === 'ArrowLeft') {
       event.preventDefault();
+      dismissUsageHint(true);
       controllerRef.seek(Math.max(0, controllerRef.currentTime - jump));
     } else if (event.key === 'Home') {
-      event.preventDefault(); controllerRef.seek(0);
+      event.preventDefault();
+      dismissUsageHint(true);
+      controllerRef.seek(0);
     } else if (event.key === 'End') {
-      event.preventDefault(); controllerRef.seek(options.duration);
+      event.preventDefault();
+      dismissUsageHint(true);
+      controllerRef.seek(options.duration);
     }
   });
 
@@ -290,14 +368,80 @@ export function createStagePlayer(root: HTMLDivElement, options: StagePlayerOpti
     detailsPanel.setAttribute('aria-hidden', String(!open));
     detailsButton.setAttribute('aria-expanded', String(open));
     if (currentCopy) detailsButton.textContent = open ? currentCopy.closeDetails : currentCopy.details;
+
+    if (open) {
+      detailsReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : detailsButton;
+      detailsClose.focus({ preventScroll: true });
+    } else if (detailsReturnFocus) {
+      detailsReturnFocus.focus({ preventScroll: true });
+      detailsReturnFocus = null;
+    }
   }
 
-  detailsButton.addEventListener('click', () => setDetailsOpen(!detailsOpen));
+  detailsButton.addEventListener('click', () => {
+    dismissUsageHint(true);
+    setDetailsOpen(!detailsOpen);
+  });
   detailsClose.addEventListener('click', () => setDetailsOpen(false));
+
+  function hasSeenUsageHint() {
+    try { return localStorage.getItem(PLAYER_HINT_KEY) === '1'; }
+    catch { return false; }
+  }
+
+  function maybeShowUsageHint() {
+    if (document.documentElement.dataset.embed === '1' || document.documentElement.dataset.export === '1' || hasSeenUsageHint()) return;
+    usageHint.classList.add('is-visible');
+    usageHint.setAttribute('aria-hidden', 'false');
+    if (usageHintTimer !== null) window.clearTimeout(usageHintTimer);
+    usageHintTimer = window.setTimeout(() => dismissUsageHint(false), 7200);
+  }
+
+  function dismissUsageHint(remember: boolean) {
+    usageHint.classList.remove('is-visible');
+    usageHint.setAttribute('aria-hidden', 'true');
+    if (usageHintTimer !== null) {
+      window.clearTimeout(usageHintTimer);
+      usageHintTimer = null;
+    }
+    if (remember) {
+      try { localStorage.setItem(PLAYER_HINT_KEY, '1'); }
+      catch { /* storage can be disabled */ }
+    }
+  }
+
+  usageDismiss.addEventListener('click', () => dismissUsageHint(true));
+
+  function updateFullscreenCopy() {
+    const uiCopy = localizedUi(currentLanguage);
+    const label = document.fullscreenElement ? uiCopy.exitFullscreen : uiCopy.fullscreen;
+    fullscreenButton.title = label;
+    fullscreenButton.setAttribute('aria-label', label);
+    fullscreenButton.classList.toggle('is-active', Boolean(document.fullscreenElement));
+  }
+
+  fullscreenButton.addEventListener('click', async () => {
+    dismissUsageHint(true);
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await stage.requestFullscreen();
+    } catch (error) {
+      console.warn('Fullscreen request failed', error);
+    }
+  });
+  document.addEventListener('fullscreenchange', updateFullscreenCopy);
+
+  const onDocumentKeydown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape' && detailsOpen) setDetailsOpen(false);
+  };
+  document.addEventListener('keydown', onDocumentKeydown);
 
   function dispose() {
     unsubscribe?.();
     unsubscribe = null;
+    if (usageHintTimer !== null) window.clearTimeout(usageHintTimer);
+    document.removeEventListener('fullscreenchange', updateFullscreenCopy);
+    document.removeEventListener('keydown', onDocumentKeydown);
     if (window.__LOOP_STORY__) delete window.__LOOP_STORY__;
   }
 
@@ -312,12 +456,6 @@ export function createStagePlayer(root: HTMLDivElement, options: StagePlayerOpti
     renderAt,
     dispose,
   };
-}
-
-function get<T extends Element>(selector: string): T {
-  const element = document.querySelector<T>(selector);
-  if (!element) throw new Error(`Missing ${selector}`);
-  return element;
 }
 
 function escapeHtml(value: string) {
