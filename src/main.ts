@@ -9,7 +9,8 @@ if (embedded) document.documentElement.dataset.embed = '1';
 if (exporting) document.documentElement.dataset.export = '1';
 
 const demoLoaders: Record<string, () => Promise<unknown>> = {
-  eclipse: () => import('./examples/eclipse/main'),
+  eclipse: () => import('./examples/eclipse/studio'),
+  water: () => import('./examples/water/main'),
   dns: () => import('./examples/dns/main'),
   binary: () => import('./examples/binary/main'),
 };
