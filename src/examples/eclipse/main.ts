@@ -157,6 +157,7 @@ function renderScene(time: number) {
 
 const controller = new DeterministicTimeline({
   duration: DURATION,
+  qaTimes: [0, 3.4, 4, 8.4, 9, 11.9, 14, 17.9],
   onRender: renderScene,
   onPlayStateChange(playing) { toggle.textContent = playing ? '暂停' : '播放'; },
 });
