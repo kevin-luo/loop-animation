@@ -3,6 +3,7 @@ export type RenderCallback = (time: number, progress: number) => void;
 export interface LoopAnimationController {
   readonly duration: number;
   readonly ready: boolean;
+  readonly qaTimes?: readonly number[];
   renderAt(time: number): void;
   play(): void;
   pause(): void;
@@ -14,10 +15,12 @@ export interface TimelineOptions {
   duration: number;
   onRender: RenderCallback;
   onPlayStateChange?: (playing: boolean) => void;
+  qaTimes?: readonly number[];
 }
 
 export class DeterministicTimeline implements LoopAnimationController {
   public readonly duration: number;
+  public readonly qaTimes: readonly number[];
   public ready = true;
 
   private readonly onRender: RenderCallback;
@@ -32,6 +35,7 @@ export class DeterministicTimeline implements LoopAnimationController {
     this.duration = Math.max(0.001, options.duration);
     this.onRender = options.onRender;
     this.onPlayStateChange = options.onPlayStateChange;
+    this.qaTimes = normalizeQaTimes(options.qaTimes ?? [], this.duration);
     this.renderAt(0);
   }
 
@@ -101,4 +105,10 @@ export function segment(time: number, start: number, end: number): number {
 
 export function lerp(from: number, to: number, t: number): number {
   return from + (to - from) * Math.min(1, Math.max(0, t));
+}
+
+function normalizeQaTimes(times: readonly number[], duration: number): readonly number[] {
+  const defaults = [0, duration * 0.25, duration * 0.5, duration * 0.75, Math.max(0, duration - 0.001)];
+  const source = times.length > 0 ? [...times, ...defaults] : defaults;
+  return [...new Set(source.map((time) => Number(Math.min(duration, Math.max(0, time)).toFixed(3))))].sort((a, b) => a - b);
 }
