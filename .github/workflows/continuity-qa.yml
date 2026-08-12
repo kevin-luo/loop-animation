@@ -5,6 +5,7 @@ on:
   push:
     branches: [main]
     paths:
+      - 'src/examples/water-v2/**'
       - 'src/examples/water/**'
       - 'src/examples/eclipse/**'
       - 'src/runtime/animation.ts'
@@ -21,21 +22,21 @@ on:
 jobs:
   flagship-continuity:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - run: npm install
-      - name: Run strict water continuity QA
-        run: npm run qa:water:strict
+      - name: Run strict water-v2 continuity QA
+        run: npm run qa:water-v2:strict
       - name: Run strict eclipse continuity QA
         run: npm run qa:eclipse:strict
       - name: Verify localized story exports
         run: |
-          node scripts/export-story.mjs --demo water --lang zh
-          node scripts/export-story.mjs --demo water --lang en
+          node scripts/export-story.mjs --demo water-v2 --lang zh
+          node scripts/export-story.mjs --demo water-v2 --lang en
           node scripts/export-story.mjs --demo eclipse --lang zh
           node scripts/export-story.mjs --demo eclipse --lang en
       - name: Upload QA and story artifacts
@@ -44,8 +45,8 @@ jobs:
         with:
           name: flagship-quality-artifacts
           path: |
-            .output/qa/water
+            .output/qa/water-v2
             .output/qa/eclipse
-            .output/story/water
+            .output/story/water-v2
             .output/story/eclipse
           if-no-files-found: warn
