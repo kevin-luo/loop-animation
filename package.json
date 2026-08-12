@@ -1,9 +1,9 @@
 {
   "name": "loop-animation",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
-  "description": "A Codex skill for turning concepts into interactive Three.js explainers and exporting them as HTML, MP4, GIF, or PNG.",
+  "description": "A Codex skill for turning concepts into guided interactive Three.js explainers and exporting them as HTML, MP4, GIF, or PNG.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -11,10 +11,13 @@
     "typecheck": "tsc --noEmit",
     "qa": "npm run build && node scripts/qa.mjs",
     "qa:landscape": "npm run build && node scripts/qa.mjs --width 1920 --height 1080",
+    "qa:water": "npm run build && node scripts/qa.mjs --demo water --width 1920 --height 1080",
     "export": "npm run build && node scripts/export.mjs",
     "export:mp4": "npm run build && node scripts/export.mjs --format mp4",
     "export:gif": "npm run build && node scripts/export.mjs --format gif",
     "export:png": "npm run build && node scripts/export.mjs --format png",
+    "export:water:mp4": "npm run build && node scripts/export.mjs --format mp4 --demo water --width 1920 --height 1080",
+    "export:water:gif": "npm run build && node scripts/export.mjs --format gif --demo water --width 1200 --height 675 --fps 15",
     "skill:install": "node scripts/install-skill.mjs",
     "skill:install:force": "node scripts/install-skill.mjs --force"
   },
