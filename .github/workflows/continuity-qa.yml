@@ -11,7 +11,10 @@ on:
       - 'src/runtime/canvas-viewport.ts'
       - 'src/runtime/stage-player.ts'
       - 'src/runtime/stage-player.css'
+      - 'src/runtime/story.ts'
+      - 'src/runtime/global.d.ts'
       - 'scripts/qa.mjs'
+      - 'scripts/export-story.mjs'
       - 'package.json'
       - '.github/workflows/continuity-qa.yml'
 
@@ -29,12 +32,20 @@ jobs:
         run: npm run qa:water:strict
       - name: Run strict eclipse continuity QA
         run: npm run qa:eclipse:strict
-      - name: Upload QA reports
+      - name: Verify localized story exports
+        run: |
+          node scripts/export-story.mjs --demo water --lang zh
+          node scripts/export-story.mjs --demo water --lang en
+          node scripts/export-story.mjs --demo eclipse --lang zh
+          node scripts/export-story.mjs --demo eclipse --lang en
+      - name: Upload QA and story artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: flagship-continuity-qa
+          name: flagship-quality-artifacts
           path: |
             .output/qa/water
             .output/qa/eclipse
+            .output/story/water
+            .output/story/eclipse
           if-no-files-found: warn
