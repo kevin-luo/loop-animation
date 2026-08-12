@@ -1,7 +1,7 @@
 import { getLanguage, persistLanguage, type AppLanguage, withLanguage } from '../runtime/i18n';
 import './style.css';
 
-const root = document.querySelector<HTMLDivElement>('#app');
+const root = document.querySelector<HTMLDivElement>('#app')!;
 if (!root) throw new Error('Missing #app');
 
 let language: AppLanguage = getLanguage();
