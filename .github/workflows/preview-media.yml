@@ -20,6 +20,7 @@ concurrency:
 jobs:
   render:
     runs-on: ubuntu-latest
+    timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,17 +38,17 @@ jobs:
       - run: npm run build
       - name: Render short README previews from the real Three.js demos
         run: |
-          rm -rf .preview docs/media/eclipse.gif docs/media/water.gif
-          node scripts/export.mjs --format gif --demo eclipse --start 8 --duration 10 --width 960 --height 540 --fps 10 --output .preview/eclipse
-          node scripts/export.mjs --format gif --demo water --start 4 --duration 10 --width 960 --height 540 --fps 10 --output .preview/water
+          rm -rf .preview docs/media/eclipse.gif docs/media/water-v2.gif
+          node scripts/export.mjs --format gif --demo eclipse --start 8 --duration 9 --width 960 --height 540 --fps 10 --output .preview/eclipse
+          node scripts/export.mjs --format gif --demo water-v2 --start 7 --duration 11 --width 960 --height 540 --fps 10 --output .preview/water-v2
           mkdir -p docs/media
           cp .preview/eclipse/eclipse.gif docs/media/eclipse.gif
-          cp .preview/water/water.gif docs/media/water.gif
+          cp .preview/water-v2/water-v2.gif docs/media/water-v2.gif
       - name: Commit refreshed previews
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/media/eclipse.gif docs/media/water.gif
+          git add docs/media/eclipse.gif docs/media/water-v2.gif
           if git diff --cached --quiet; then
             echo "Previews unchanged"
             exit 0
