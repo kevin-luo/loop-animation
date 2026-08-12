@@ -6,7 +6,7 @@
   "description": "A Codex skill for turning concepts into continuous interactive Three.js explainers and exporting them as HTML, MP4, GIF, PNG, subtitles, or narration data.",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/copy-gallery-media.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "smoke:ui": "node scripts/ui-smoke.mjs",
