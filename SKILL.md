@@ -1,6 +1,6 @@
 ---
 name: loop-animation
-description: Create polished interactive educational explainers with Three.js, continuous deterministic motion, guided narration, and HTML/MP4/GIF/PNG/SRT/VTT export.
+description: Create polished interactive educational explainers with Three.js, continuous deterministic motion, hybrid raster/shader/3D visuals, guided narration, and HTML/MP4/GIF/PNG/SRT/VTT export.
 ---
 
 # Loop Animation
@@ -16,6 +16,8 @@ continuous world S(t)
         +
 Story Manifest
         +
+hybrid visual layers
+        +
 replaceable interaction UI
         ↓
 HTML / MP4 / GIF / PNG / SRT / VTT / narration JSON
@@ -23,38 +25,62 @@ HTML / MP4 / GIF / PNG / SRT / VTT / narration JSON
 
 Chapters are narration/navigation metadata. They must not own separate camera or object states.
 
-### Do this
+## Visual direction
+
+Use the right rendering layer for the job:
+
+```text
+Three.js / shaders  → motion, camera, geometry, particles, interaction
+Raster / img2       → rich environments, anatomy, detailed surfaces
+HTML / CSS          → short explanations, controls, accessibility
+Story Manifest      → narration, subtitles, future TTS
+```
+
+SVG and primitives remain useful for diagrams and algorithms. Do not force a rich natural scene into primitive drawing when raster/generated art or shaders would teach better.
+
+Current visual reference:
+
+```text
+src/examples/water-v2/main.ts
+```
+
+## Continuity rules
+
+Prefer:
 
 ```ts
-const rain = envelope(time, 8.5, 10.5, 16.5, 18.5);
+const rain = envelope(time, 10.7, 12.5, 19.2, 21.0);
 material.opacity = rain;
 cameraCurve.getPointAt(time / duration, camera.position);
 ```
 
-### Avoid this
+Avoid:
 
 ```ts
 if (step === 2) object.visible = true;
 if (step === 3) camera.position.set(...);
 ```
 
-Those patterns create visual jumps at chapter boundaries.
+Never accumulate export-critical state from previous renders:
+
+```ts
+// bad
+cloud.position.y += drift;
+
+// good
+cloud.position.y = baseY + wave(time);
+```
 
 ## Runtime rules
 
 - `renderAt(seconds)` is the deterministic visual source of truth.
 - `window.__LOOP_STORY__` is the localized narration/timing source of truth for flagship StagePlayer demos.
 - Same timestamp = same conceptual frame, independent of FPS or previous seeks.
-- Use `DeterministicTimeline` from `src/runtime/animation.ts`.
+- Use `DeterministicTimeline`.
 - Use `reveal()` / `envelope()` for overlapping transitions.
 - Use `observeRendererViewport()` instead of resizing WebGL every frame.
-- Prefer `THREE.Points` / `InstancedMesh` over many particle Meshes.
-- Update chapter text only when the chapter changes.
+- Prefer `THREE.Points` / `InstancedMesh` for repeated particles.
 - Seed procedural randomness.
-
-## UI direction
-
-Default to a **stage-first interactive film** rather than a dashboard. Share playback/navigation behavior without forcing every topic into the same visual composition.
 
 ## QA
 
@@ -64,25 +90,29 @@ npm run build
 npm run qa:continuity
 ```
 
+Water v2:
+
+```bash
+npm run qa:water-v2:strict
+```
+
 Boundary QA samples `t - 1 frame`, `t`, and `t + 1 frame` and reports suspicious asymmetric visual changes.
 
 ## Story export
 
 ```bash
-npm run story:water:zh
-npm run story:water:en
+npm run story:water-v2:zh
+npm run story:water-v2:en
 npm run story:eclipse:zh
 npm run story:eclipse:en
 ```
 
-Produces localized narration JSON / Markdown plus SRT and WebVTT captions from the same Story Manifest used by the interactive page.
-
 ## Visual export
 
 ```bash
-npm run export:mp4
-npm run export:gif
-npm run export:png
+npm run export:water-v2:mp4
+npm run export:water-v2:gif
+npm run export:water-v2:png
 ```
 
 For full production rules, read `.agents/skills/loop-animation/SKILL.md`.
