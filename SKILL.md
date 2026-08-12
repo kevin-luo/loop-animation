@@ -1,6 +1,6 @@
 ---
 name: loop-animation
-description: Create polished interactive educational explainers with Three.js, continuous deterministic motion, guided narration, and HTML/MP4/GIF/PNG export.
+description: Create polished interactive educational explainers with Three.js, continuous deterministic motion, guided narration, and HTML/MP4/GIF/PNG/SRT/VTT export.
 ---
 
 # Loop Animation
@@ -14,12 +14,14 @@ Loop Animation treats an explainer as **one continuous visual world**, not a set
 ```text
 continuous world S(t)
         +
-chapter metadata
+Story Manifest
         +
 replaceable interaction UI
+        ↓
+HTML / MP4 / GIF / PNG / SRT / VTT / narration JSON
 ```
 
-Chapters are narration and navigation markers. They must not own separate camera/object states.
+Chapters are narration/navigation metadata. They must not own separate camera or object states.
 
 ### Do this
 
@@ -40,8 +42,9 @@ Those patterns create visual jumps at chapter boundaries.
 
 ## Runtime rules
 
-- `renderAt(seconds)` is the deterministic source of truth.
-- Same timestamp = same frame, independent of FPS or previous seeks.
+- `renderAt(seconds)` is the deterministic visual source of truth.
+- `window.__LOOP_STORY__` is the localized narration/timing source of truth for flagship StagePlayer demos.
+- Same timestamp = same conceptual frame, independent of FPS or previous seeks.
 - Use `DeterministicTimeline` from `src/runtime/animation.ts`.
 - Use `reveal()` / `envelope()` for overlapping transitions.
 - Use `observeRendererViewport()` instead of resizing WebGL every frame.
@@ -51,37 +54,35 @@ Those patterns create visual jumps at chapter boundaries.
 
 ## UI direction
 
-Default to a **stage-first interactive film** rather than a dashboard.
-
-Prefer:
-
-- a large uninterrupted visual stage
-- one concise lower-third explanation
-- an integrated storyline/progress control
-- deeper explanation on demand
-- language switching instead of mixed bilingual copy
-
-`src/runtime/stage-player.ts` is a starting view layer, not a mandatory template.
+Default to a **stage-first interactive film** rather than a dashboard. Share playback/navigation behavior without forcing every topic into the same visual composition.
 
 ## QA
 
 ```bash
 npm run typecheck
 npm run build
-npm run qa:water
-npm run qa:water:strict
+npm run qa:continuity
 ```
 
-QA now samples chapter boundaries at `t - 1 frame`, `t`, and `t + 1 frame` and reports suspicious asymmetric pixel changes.
+Boundary QA samples `t - 1 frame`, `t`, and `t + 1 frame` and reports suspicious asymmetric visual changes.
 
-## Export
+## Story export
+
+```bash
+npm run story:water:zh
+npm run story:water:en
+npm run story:eclipse:zh
+npm run story:eclipse:en
+```
+
+Produces localized narration JSON / Markdown plus SRT and WebVTT captions from the same Story Manifest used by the interactive page.
+
+## Visual export
 
 ```bash
 npm run export:mp4
 npm run export:gif
 npm run export:png
 ```
-
-The same deterministic HTML source should drive video, GIF, poster, narration, subtitles and QA.
 
 For full production rules, read `.agents/skills/loop-animation/SKILL.md`.
