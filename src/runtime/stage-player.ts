@@ -102,7 +102,9 @@ export function createStagePlayer(root: HTMLDivElement, options: StagePlayerOpti
           </div>
 
           <div id="story-line" class="story-line">
-            <div class="story-line-track"><i class="story-line-fill"></i></div>
+            <div id="story-line-track" class="story-line-track" role="slider" tabindex="0" aria-label="Timeline" aria-valuemin="0" aria-valuemax="${options.duration}" aria-valuenow="0">
+              <i class="story-line-fill"></i><b class="story-playhead"></b>
+            </div>
             <div class="story-chapters">
               ${options.steps.map((step, index) => `
                 <button type="button" class="story-chapter-button" data-chapter="${index}" style="--chapter-weight:${weights[index]}">
@@ -130,6 +132,7 @@ export function createStagePlayer(root: HTMLDivElement, options: StagePlayerOpti
   const playButton = get<HTMLButtonElement>('#story-play');
   const nextButton = get<HTMLButtonElement>('#story-next');
   const line = get<HTMLElement>('#story-line');
+  const lineTrack = get<HTMLElement>('#story-line-track');
   const timeLabel = get<HTMLTimeElement>('#story-time');
   const caption = get<HTMLElement>('#story-caption');
   const chapterButtons = [...root.querySelectorAll<HTMLButtonElement>('.story-chapter-button')];
@@ -149,16 +152,15 @@ export function createStagePlayer(root: HTMLDivElement, options: StagePlayerOpti
   const key = get<HTMLElement>('#story-key');
 
   let currentCopy: StagePlayerCopy | null = null;
-  let currentLanguage: AppLanguage = 'en';
   let lastChapter = -1;
   let lastTimeLabel = Number.NEGATIVE_INFINITY;
   let unsubscribe: (() => void) | null = null;
   let controllerRef: LoopAnimationController | null = null;
   let detailsOpen = false;
+  let draggingTimeline = false;
 
   function applyCopy(copy: StagePlayerCopy, language: AppLanguage) {
     currentCopy = copy;
-    currentLanguage = language;
     document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en';
     brand.textContent = copy.brand;
     category.textContent = copy.category;
@@ -216,6 +218,7 @@ export function createStagePlayer(root: HTMLDivElement, options: StagePlayerOpti
 
     const progress = Math.min(1, Math.max(0, time / options.duration));
     line.style.setProperty('--story-progress', String(progress));
+    lineTrack.setAttribute('aria-valuenow', time.toFixed(2));
 
     if (Math.abs(time - lastTimeLabel) >= 0.1 || time === 0 || time >= options.duration) {
       timeLabel.textContent = `${time.toFixed(1)}s`;
@@ -241,6 +244,42 @@ export function createStagePlayer(root: HTMLDivElement, options: StagePlayerOpti
     nextButton.addEventListener('click', () => controller.nextStep?.());
     playButton.addEventListener('click', () => controller.isPlaying ? controller.pause() : controller.play());
   }
+
+  function seekFromPointer(clientX: number) {
+    if (!controllerRef) return;
+    const rect = lineTrack.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / Math.max(1, rect.width)));
+    controllerRef.seek(ratio * options.duration);
+  }
+
+  lineTrack.addEventListener('pointerdown', (event) => {
+    draggingTimeline = true;
+    lineTrack.setPointerCapture(event.pointerId);
+    seekFromPointer(event.clientX);
+  });
+  lineTrack.addEventListener('pointermove', (event) => {
+    if (draggingTimeline) seekFromPointer(event.clientX);
+  });
+  lineTrack.addEventListener('pointerup', (event) => {
+    draggingTimeline = false;
+    if (lineTrack.hasPointerCapture(event.pointerId)) lineTrack.releasePointerCapture(event.pointerId);
+  });
+  lineTrack.addEventListener('pointercancel', () => { draggingTimeline = false; });
+  lineTrack.addEventListener('keydown', (event) => {
+    if (!controllerRef) return;
+    const jump = event.shiftKey ? 1 : 0.25;
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      controllerRef.seek(Math.min(options.duration, controllerRef.currentTime + jump));
+    } else if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      controllerRef.seek(Math.max(0, controllerRef.currentTime - jump));
+    } else if (event.key === 'Home') {
+      event.preventDefault(); controllerRef.seek(0);
+    } else if (event.key === 'End') {
+      event.preventDefault(); controllerRef.seek(options.duration);
+    }
+  });
 
   function setDetailsOpen(open: boolean) {
     detailsOpen = open;
