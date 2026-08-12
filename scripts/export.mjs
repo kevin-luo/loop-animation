@@ -43,20 +43,29 @@ try {
     window.__LOOP_ANIMATION__?.pause();
   });
 
-  const duration = await page.evaluate(() => window.__LOOP_ANIMATION__?.duration ?? 0);
-  if (!Number.isFinite(duration) || duration <= 0) throw new Error('Animation duration is invalid.');
+  const totalDuration = await page.evaluate(() => window.__LOOP_ANIMATION__?.duration ?? 0);
+  if (!Number.isFinite(totalDuration) || totalDuration <= 0) throw new Error('Animation duration is invalid.');
 
   if (format === 'png') {
-    const posterTime = Math.min(duration, Math.max(0, Number(args.time ?? duration * 0.55)));
+    const posterTime = clamp(Number(args.time ?? totalDuration * 0.55), 0, totalDuration);
     await renderAt(page, posterTime);
     const output = join(outDir, `${demo}-poster.png`);
     await page.screenshot({ path: output, type: 'png' });
-    console.log(`✓ PNG (${demo}): ${output}`);
+    console.log(`✓ PNG (${demo} @ ${posterTime.toFixed(2)}s): ${output}`);
   } else {
-    const frameCount = Math.ceil(duration * fps);
+    const start = clamp(Number(args.start ?? 0), 0, Math.max(0, totalDuration - 1 / Math.max(1, fps)));
+    const requestedClipDuration = args.duration === undefined
+      ? totalDuration - start
+      : Math.max(1 / Math.max(1, fps), Number(args.duration));
+    const end = Math.min(totalDuration, start + requestedClipDuration);
+    const clipDuration = Math.max(1 / Math.max(1, fps), end - start);
+    const frameCount = Math.max(1, Math.ceil(clipDuration * fps));
     const digits = Math.max(5, String(frameCount - 1).length);
+
+    console.log(`Rendering ${demo} ${format.toUpperCase()} clip: ${start.toFixed(2)}s → ${end.toFixed(2)}s (${frameCount} frames @ ${fps}fps)`);
+
     for (let frame = 0; frame < frameCount; frame++) {
-      const time = Math.min(duration, frame / fps);
+      const time = Math.min(end, start + frame / fps);
       await renderAt(page, time);
       const name = `frame-${String(frame).padStart(digits, '0')}.png`;
       await page.screenshot({ path: join(framesDir, name), type: 'png' });
@@ -69,11 +78,11 @@ try {
     if (format === 'mp4') {
       const output = join(outDir, `${demo}.mp4`);
       runFfmpeg(['-y', '-framerate', String(fps), '-i', join(framesDir, `frame-%0${digits}d.png`), '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', output]);
-      console.log(`✓ MP4 (${demo}): ${output}`);
+      console.log(`✓ MP4 (${demo}, ${start.toFixed(2)}s → ${end.toFixed(2)}s): ${output}`);
     } else {
       const output = join(outDir, `${demo}.gif`);
       runFfmpeg(['-y', '-framerate', String(fps), '-i', join(framesDir, `frame-%0${digits}d.png`), '-vf', `fps=${Math.min(15, fps)},scale='min(900,iw)':-2:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=sierra2_4a`, '-loop', '0', output]);
-      console.log(`✓ GIF (${demo}): ${output}`);
+      console.log(`✓ GIF (${demo}, ${start.toFixed(2)}s → ${end.toFixed(2)}s): ${output}`);
     }
   }
 } finally {
@@ -107,6 +116,10 @@ function parseArgs(argv) {
     else { result[key] = next; i++; }
   }
   return result;
+}
+
+function clamp(value, minimum, maximum) {
+  return Math.min(maximum, Math.max(minimum, Number.isFinite(value) ? value : minimum));
 }
 
 function createStaticServer(root) {
