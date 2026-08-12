@@ -9,6 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "smoke:ui": "node scripts/ui-smoke.mjs",
+    "smoke:ui:build": "npm run build && node scripts/ui-smoke.mjs",
     "qa": "npm run build && node scripts/qa.mjs",
     "qa:landscape": "npm run build && node scripts/qa.mjs --width 1920 --height 1080",
     "qa:water": "npm run build && node scripts/qa.mjs --demo water --width 1920 --height 1080",
