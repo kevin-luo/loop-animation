@@ -46,7 +46,7 @@ jobs:
       - name: Commit refreshed previews
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "4189822+github-actions[bot]@users.noreply.github.com"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/media/eclipse.gif docs/media/water.gif
           if git diff --cached --quiet; then
             echo "Previews unchanged"
